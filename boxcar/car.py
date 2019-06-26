@@ -2,6 +2,73 @@ from Box2D import *
 from typing import List
 from numpy import random
 from .utils import boxcar_constant as bcc
+from .wheel import *
+from typing import List
+import math
+
+
+class Car(object):
+    def __init__(self, world: b2World, wheels: List[Wheel], wheel_vertices: List[int], 
+                 chassis_vertices: List[b2Vec2]=None, chassis_densities: List[float]=None) -> None:
+        self.world = world
+        self.wheels = wheels
+        self.wheel_vertices = wheel_vertices
+        self.chassis_vertices = chassis_vertices
+        self.chassis_densities = chassis_densities
+
+        if self.chassis_vertices:
+            self.chassis = create_chassis(world, self.chassis_vertices, self.chassis_densities)
+        else:
+            self.chassis = create_random_chassis(world)
+
+        # Calculate mass of car
+        self.mass = self.chassis.mass
+        for wheel in self.wheels:
+            self.mass += wheel.mass
+
+        #@TODO: This isn't right
+        for wheel in self.wheels:
+            torque = self.mass * abs(world.gravity.y) / wheel.radius
+            wheel.torque = torque
+
+        joint_def = b2RevoluteJointDef()
+        for i in range(len(self.wheels)):
+            chassis_vertex = self.chassis_vertices[self.wheel_vertices[i]] # self.chassis.fixtures[0].shape.vertices[0]
+            joint_def.localAnchorA = chassis_vertex
+            joint_def.localAnchorB =  self.wheels[i].body.fixtures[0].shape.pos
+            joint_def.maxMotorTorque = self.wheels[i].torque
+            joint_def.motorSpeed = -15
+            joint_def.enableMotor = True
+            joint_def.bodyA = self.chassis
+            joint_def.bodyB = self.wheels[i].body
+            world.CreateJoint(joint_def)
+
+def create_random_car(world: b2World):
+    num_wheels = 2 # random.randint(0, 9)
+    restitution = .2
+    wheels = []
+    for i in range(num_wheels):
+        radius = .2
+        density = 10
+        wheels.append(Wheel(world, radius, density, restitution))
+    
+    min_chassis_axis = bcc['min_chassis_axis']
+    max_chassis_axis = bcc['max_chassis_axis']
+
+    chassis_vertices = []
+    chassis_vertices.append(b2Vec2(random.uniform(min_chassis_axis, max_chassis_axis), 0))
+    chassis_vertices.append(b2Vec2(random.uniform(min_chassis_axis, max_chassis_axis), random.uniform(min_chassis_axis, max_chassis_axis)))
+    chassis_vertices.append(b2Vec2(0, random.uniform(min_chassis_axis, max_chassis_axis)))
+    chassis_vertices.append(b2Vec2(-random.uniform(min_chassis_axis, max_chassis_axis), random.uniform(min_chassis_axis, max_chassis_axis)))
+    chassis_vertices.append(b2Vec2(-random.uniform(min_chassis_axis, max_chassis_axis), 0))
+    chassis_vertices.append(b2Vec2(-random.uniform(min_chassis_axis, max_chassis_axis), -random.uniform(min_chassis_axis, max_chassis_axis)))
+    chassis_vertices.append(b2Vec2(0, -random.uniform(min_chassis_axis, max_chassis_axis)))
+    chassis_vertices.append(b2Vec2(random.uniform(min_chassis_axis, max_chassis_axis), -random.uniform(min_chassis_axis, max_chassis_axis)))
+
+    densities = [30.] * 8
+
+    wheel_verts = [1, 4]
+    return Car(world, wheels, wheel_verts, chassis_vertices, densities)
 
 
 def create_random_chassis(world: b2World) -> b2Body:

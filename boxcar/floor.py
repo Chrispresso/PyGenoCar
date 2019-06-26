@@ -63,7 +63,6 @@ class Floor(object):
             # floor_tile = create_floor_tile(self.world, tile_position, (self.rand.random()*1.5*2 - 1.5) * 1.5*i/self.num_tiles)
             floor_tile = create_floor_tile(self.world, tile_position, 0)  # i*3
             self.floor_tiles.append(floor_tile)
-            fixture = floor_tile.fixtures[0]
             # Get the world coordinate of the bottom-right of the box and set that as the next position to start from.
             # The position of the new box will be defined from bottom-left, so this stacks them next to each other
             world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])

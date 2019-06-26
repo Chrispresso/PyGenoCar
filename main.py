@@ -21,6 +21,7 @@ class Window(QMainWindow):
         self.height = 500
         self.floor = Floor(self.world)
         self.chassis = create_random_chassis(self.world)
+        self.car = create_random_car(self.world)
 
         # Camera stuff
         self._camera = b2Vec2()
@@ -33,15 +34,49 @@ class Window(QMainWindow):
         self._timer.timeout.connect(self._update)
         self._timer.start(1000//60)
 
+    def _draw_car(self, painter: QPainter, car: Car):
+        for wheel in car.wheels:
+            print(wheel.body.GetWorldPoint(wheel.body.fixtures[0].shape.pos))
+            self.draw_circle(painter, wheel.body)
+
+        self.draw_polygon(painter, car.chassis)
+
     def _update(self):
         self.world.Step(1./60, 10, 6)
         self.world.ClearForces()
         self.update()
 
+    def _set_painter_solid(self, painter: QPainter, color: Qt.GlobalColor, with_antialiasing: bool = True):
+        painter.setPen(QPen(color, 1./scale, Qt.SolidLine))
+        painter.setBrush(QBrush(color, Qt.SolidPattern))
+        if with_antialiasing:
+            painter.setRenderHint(QPainter.Antialiasing)
+
     def init_window(self):
         self.setWindowTitle(self.title)
         self.setGeometry(self.top, self.left, self.width, self.height)
         self.show()
+
+    def _draw_floor(self, painter: QPainter):
+        for tile in self.floor.floor_tiles:
+            self.draw_polygon(painter, tile)
+
+    def draw_circle(self, painter: QPainter, body: b2Body) -> None:
+        for fixture in body.fixtures:
+            if isinstance(fixture.shape, b2CircleShape):
+                self._set_painter_solid(painter, Qt.black)
+                radius = fixture.shape.radius
+                center = body.GetWorldPoint(fixture.shape.pos)
+
+                # Fill circle
+                painter.drawEllipse(QPointF(center.x, center.y), radius, radius)
+
+                # Draw line (helps for visualization of how fast and direction wheel is moving)
+                self._set_painter_solid(painter, Qt.green)
+                p0 = QPointF(center.x, center.y)
+                p1 = QPointF(center.x + radius*math.cos(body.angle), center.y + radius*math.sin(body.angle))
+                painter.drawLine(p0, p1)
+
 
     def draw_polygon(self, painter: QPainter, body: b2Body) -> None:
         painter.setPen(QPen(Qt.black, 1./scale, Qt.SolidLine))
@@ -79,13 +114,10 @@ class Window(QMainWindow):
         painter.setPen(QPen(Qt.black, 5, Qt.SolidLine))
         painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
         
-        for i, tile in enumerate(self.floor.floor_tiles[:]):
-            # print(tile.position)
-            # print('-- ',end='')
-            # print(tile.fixtures[0].shape.vertices)
-            self.draw_polygon(painter, tile)
+        self._draw_floor(painter)
 
-        self.draw_polygon(painter, self.chassis)
+        # self.draw_polygon(painter, self.chassis)
+        self._draw_car(painter, self.car)
         # for fixture in self.chassis.fixtures:
         #     print([self.chassis.GetWorldPoint(vert) for vert in fixture.shape.vertices])
 
