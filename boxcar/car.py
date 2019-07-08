@@ -1,6 +1,7 @@
 from Box2D import *
 from typing import List
 from numpy import random
+import random as rand
 from .utils import boxcar_constant as bcc
 from .wheel import *
 from typing import List
@@ -16,10 +17,8 @@ class Car(object):
         self.chassis_vertices = chassis_vertices
         self.chassis_densities = chassis_densities
 
-        if self.chassis_vertices:
-            self.chassis = create_chassis(world, self.chassis_vertices, self.chassis_densities)
-        else:
-            self.chassis = create_random_chassis(world)
+        self.chassis = create_chassis(self.world, self.chassis_vertices, self.chassis_densities)
+
 
         # Calculate mass of car
         self.mass = self.chassis.mass
@@ -33,23 +32,25 @@ class Car(object):
 
         joint_def = b2RevoluteJointDef()
         for i in range(len(self.wheels)):
-            chassis_vertex = self.chassis_vertices[self.wheel_vertices[i]] # self.chassis.fixtures[0].shape.vertices[0]
+            chassis_vertex = self.chassis_vertices[self.wheel_vertices[i]]
             joint_def.localAnchorA = chassis_vertex
             joint_def.localAnchorB =  self.wheels[i].body.fixtures[0].shape.pos
             joint_def.maxMotorTorque = self.wheels[i].torque
-            joint_def.motorSpeed = -15
+            joint_def.motorSpeed = -15  # @TODO: Make this random
             joint_def.enableMotor = True
             joint_def.bodyA = self.chassis
             joint_def.bodyB = self.wheels[i].body
             world.CreateJoint(joint_def)
 
 def create_random_car(world: b2World):
-    num_wheels = 2 # random.randint(0, 9)
+    # Create a number of random wheels.
+    # Each wheel will have a random radius and density
+    num_wheels = random.randint(bcc['min_num_wheels'], bcc['max_num_wheels'] + 1)
     restitution = .2
     wheels = []
-    for i in range(num_wheels):
-        radius = .2
-        density = 10
+    for _ in range(num_wheels):
+        radius = random.uniform(bcc['min_wheel_radius'], bcc['max_wheel_radius'])
+        density = random.uniform(bcc['min_wheel_density'], bcc['max_wheel_density'])
         wheels.append(Wheel(world, radius, density, restitution))
     
     min_chassis_axis = bcc['min_chassis_axis']
@@ -67,7 +68,8 @@ def create_random_car(world: b2World):
 
     densities = [30.] * 8
 
-    wheel_verts = [1, 4]
+    wheel_verts = list(range(num_wheels))
+    rand.shuffle(wheel_verts)
     return Car(world, wheels, wheel_verts, chassis_vertices, densities)
 
 

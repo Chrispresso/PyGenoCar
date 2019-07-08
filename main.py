@@ -9,6 +9,7 @@ import time
 
 ## Constants ##
 scale = 70
+FPS = 60
 
 class Window(QMainWindow):
     def __init__(self, world):
@@ -26,23 +27,33 @@ class Window(QMainWindow):
         # Camera stuff
         self._camera = b2Vec2()
         self._camera_speed = 0.05
-        self._camera.x = 100
+        self._camera.x
 
         self.init_window()
 
+        # Create a timer to run given the desired FPS
         self._timer = QTimer()
         self._timer.timeout.connect(self._update)
-        self._timer.start(1000//60)
+        self._timer.start(1000//FPS)
 
     def _draw_car(self, painter: QPainter, car: Car):
+        """
+        Draws a car to the window
+        """
         for wheel in car.wheels:
-            print(wheel.body.GetWorldPoint(wheel.body.fixtures[0].shape.pos))
             self.draw_circle(painter, wheel.body)
 
         self.draw_polygon(painter, car.chassis)
 
     def _update(self):
-        self.world.Step(1./60, 10, 6)
+        """
+        Main update method used. Called once every (1/FPS) second.
+        """
+        self.world.Step(1./FPS, 10, 6)
+        diff_x = self._camera.x - self.car.chassis.position.x
+        diff_y = self._camera.y - self.car.chassis.position.y
+        self._camera.x -= self._camera_speed * diff_x #diff_x # self._camera_speed * diff_x
+        self._camera.y -= self._camera_speed * diff_y #diff_y # self._camera_speed * diff_y
         self.world.ClearForces()
         self.update()
 
@@ -107,8 +118,8 @@ class Window(QMainWindow):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.HighQualityAntialiasing)
-        # painter.translate(200 - (self._camera.x * scale) , 200 + (self._camera.y * scale))
-        painter.translate(200,300)
+        painter.translate(200 - (self._camera.x * scale) , 200 + (self._camera.y * scale))
+        # painter.translate(200,300)
         painter.scale(scale, -scale)
         arr = [Qt.black, Qt.green, Qt.blue]
         painter.setPen(QPen(Qt.black, 5, Qt.SolidLine))
