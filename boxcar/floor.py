@@ -30,15 +30,15 @@ def create_floor_tile(world: b2World, position: b2Vec2, angle: float) -> b2Body:
     fixture_def.friction = 0.5
 
     # Coordinates of tile
-    # p3------p0
-    # |       |
-    # p2------p1
+    # p3---------p2
+    # |          |
+    # p0---------p1
     coords: List[b2Vec2] = []
-    coords.append(b2Vec2(width, -height))  # p0
+    coords.append(b2Vec2(0, 0))            # p0
     coords.append(b2Vec2(width, 0))        # p1
-    coords.append(b2Vec2(0, 0))            # p2
+    coords.append(b2Vec2(width, -height))  # p2
     coords.append(b2Vec2(0, -height))      # p3
-    # Rotate @NOTE: This rotates in reference to p2
+    # Rotate @NOTE: This rotates in reference to p0
     coords = rotate_floor_tile(coords, b2Vec2(0, 0), angle)
 
     # Set vertices of fixture
@@ -72,3 +72,11 @@ class Floor(object):
         for tile in self.floor_tiles:
             self.world.DestroyBody(tile)
 
+    def _generate_gaussian_random_floor(self):
+        tile_position = b2Vec2(-5, 0)
+        threshold = bcc['tile_gaussian_threshold']
+        denominator = 
+        for i in range(self.num_tiles):
+            numerator = min(i, threshold)
+            scale = min(float(numerator) / threshold, 1.0)
+            
