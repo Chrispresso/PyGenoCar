@@ -56,7 +56,9 @@ class Floor(object):
         self.num_tiles = num_tiles
         self.floor_tiles: List[b2Body] = []
         self.rand = np.random.RandomState(self.seed)
-        self._generate_gaussian_random_floor()
+        # self._generate_gaussian_random_floor()
+        # self._generate_ramp()
+        self._create_jagged_floor()
 
     def _generate_floor(self):
         tile_position = b2Vec2(-5, 0)
@@ -96,3 +98,92 @@ class Floor(object):
             world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[t])
             tile_position = world_coord
             
+    def _generate_ramp(self):
+        const_angle = get_boxcar_constant('ramp_constant_angle')
+        approach_tiles_needed = get_boxcar_constant('ramp_approach_distance') / get_boxcar_constant('floor_tile_width')
+        approach_tiles_needed = math.ceil(approach_tiles_needed)
+
+        # Create the approach
+        tile_position = b2Vec2(-5, 0)
+        for i in range(approach_tiles_needed):
+            floor_tile = create_floor_tile(self.world, tile_position, 0)
+            self.floor_tiles.append(floor_tile)
+            world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
+            tile_position = world_coord
+
+        last_approach_tile = tile_position
+
+        # Are we using a constant angle for the ramp?
+        if const_angle:
+            num_ramp_tiles = get_boxcar_constant('ramp_constant_distance') / get_boxcar_constant('floor_tile_width')
+            num_ramp_tiles = math.ceil(num_ramp_tiles)
+
+            # Create ramp
+            for i in range(num_ramp_tiles):
+                floor_tile = create_floor_tile(self.world, tile_position, const_angle)
+                self.floor_tiles.append(floor_tile)
+                world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
+                tile_position = world_coord
+
+        # If not, create the increasing ramp
+        else:
+            start_angle = get_boxcar_constant('ramp_start_angle')
+            increasing_angle = get_boxcar_constant('ramp_increasing_angle')
+            max_angle = get_boxcar_constant('ramp_max_angle')
+            increasing_type = get_boxcar_constant('ramp_increasing_type').lower()
+            current_angle = start_angle
+            
+
+            # Create ramp
+            while True:
+                if increasing_type == 'multiply':
+                    next_angle = current_angle * increasing_angle
+                elif increasing_type == 'add':
+                    next_angle = current_angle + increasing_angle
+                else:
+                    raise Exception("Unknown 'ramp_increasing_type', '{}'".format(increasing_type))
+
+                # If the next requested angle exceeds our maximum, break
+                if next_angle > max_angle:
+                    break
+
+                floor_tile = create_floor_tile(self.world, tile_position, current_angle)
+                self.floor_tiles.append(floor_tile)
+                world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
+                tile_position = world_coord
+
+                current_angle = next_angle
+
+        # Create the landing zone
+        distance_to_fly = get_boxcar_constant('ramp_distance_needed_to_jump')
+        tile_position = b2Vec2(tile_position.x + distance_to_fly, last_approach_tile.y)
+        for i in range(10):
+            floor_tile = create_floor_tile(self.world, tile_position, 0)
+            self.floor_tiles.append(floor_tile)
+            world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
+            tile_position = world_coord
+
+        # Create vertical stopping wall
+        for i in range(5):
+            floor_tile = create_floor_tile(self.world, tile_position, 90)
+            self.floor_tiles.append(floor_tile)
+            world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
+            tile_position = b2Vec2(world_coord.x - get_boxcar_constant('floor_tile_height'), world_coord.y)
+
+    def _create_jagged_floor(self):
+        tile_position = b2Vec2(-5, 0)
+        increasing_angle = get_boxcar_constant('jagged_increasing_angle')
+        decreasing_angle = -get_boxcar_constant('jagged_decreasing_angle')
+
+        for i in range(get_boxcar_constant('max_floor_tiles')):
+            angle = increasing_angle if i % 2 == 1 else decreasing_angle
+            floor_tile = create_floor_tile(self.world, tile_position, angle)
+            self.floor_tiles.append(floor_tile)
+            t = 1
+            if angle < 0:
+                t =0
+            
+            #@TODO: fix this
+            world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[t])
+            tile_position = world_coord
+
