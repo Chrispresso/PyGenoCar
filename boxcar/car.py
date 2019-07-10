@@ -2,7 +2,7 @@ from Box2D import *
 from typing import List
 from numpy import random
 import random as rand
-from .utils import boxcar_constant as bcc
+from .utils import get_boxcar_constant
 from .wheel import *
 from typing import List
 import math
@@ -45,16 +45,16 @@ class Car(object):
 def create_random_car(world: b2World):
     # Create a number of random wheels.
     # Each wheel will have a random radius and density
-    num_wheels = random.randint(bcc['min_num_wheels'], bcc['max_num_wheels'] + 1)
+    num_wheels = random.randint(get_boxcar_constant('min_num_wheels'), get_boxcar_constant('max_num_wheels') + 1)
     restitution = .2
     wheels = []
     for _ in range(num_wheels):
-        radius = random.uniform(bcc['min_wheel_radius'], bcc['max_wheel_radius'])
-        density = random.uniform(bcc['min_wheel_density'], bcc['max_wheel_density'])
+        radius = random.uniform(get_boxcar_constant('min_wheel_radius'), get_boxcar_constant('max_wheel_radius'))
+        density = random.uniform(get_boxcar_constant('min_wheel_density'), get_boxcar_constant('max_wheel_density'))
         wheels.append(Wheel(world, radius, density, restitution))
     
-    min_chassis_axis = bcc['min_chassis_axis']
-    max_chassis_axis = bcc['max_chassis_axis']
+    min_chassis_axis = get_boxcar_constant('min_chassis_axis')
+    max_chassis_axis = get_boxcar_constant('max_chassis_axis')
 
     chassis_vertices = []
     chassis_vertices.append(b2Vec2(random.uniform(min_chassis_axis, max_chassis_axis), 0))
@@ -74,8 +74,8 @@ def create_random_car(world: b2World):
 
 
 def create_random_chassis(world: b2World) -> b2Body:
-    min_chassis_axis = bcc['min_chassis_axis']
-    max_chassis_axis = bcc['max_chassis_axis']
+    min_chassis_axis = get_boxcar_constant('min_chassis_axis')
+    max_chassis_axis = get_boxcar_constant('max_chassis_axis')
 
     vertices = []
     vertices.append(b2Vec2(random.uniform(min_chassis_axis, max_chassis_axis), 0))

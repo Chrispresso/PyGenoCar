@@ -1,9 +1,10 @@
 from Box2D import *
 from .base import BoxCarObject
 from typing import List
-from .utils import boxcar_constant as bcc
+from .utils import get_boxcar_constant
 import math
-import random
+import numpy as np
+
 
 def rotate_floor_tile(coords: List[b2Vec2], center: b2Vec2, angle: float) -> List[b2Vec2]:
     rads = angle * math.pi / 180.0  # Degree to radians
@@ -17,8 +18,8 @@ def rotate_floor_tile(coords: List[b2Vec2], center: b2Vec2, angle: float) -> Lis
     return new_coords
 
 def create_floor_tile(world: b2World, position: b2Vec2, angle: float) -> b2Body:
-    width = bcc['floor_tile_width']
-    height = bcc['floor_tile_height']
+    width = get_boxcar_constant('floor_tile_width')
+    height = get_boxcar_constant('floor_tile_height')
 
     body_def = b2BodyDef()
     body_def.position = position
@@ -49,13 +50,13 @@ def create_floor_tile(world: b2World, position: b2Vec2, angle: float) -> b2Body:
 
 
 class Floor(object):
-    def __init__(self, world: b2World, seed=0, num_tiles = bcc['max_floor_tiles']):
+    def __init__(self, world: b2World, seed=0, num_tiles = get_boxcar_constant('max_floor_tiles')):
         self.world = world
         self.seed = seed
         self.num_tiles = num_tiles
         self.floor_tiles: List[b2Body] = []
-        self.rand = random.Random(self.seed)
-        self._generate_floor()
+        self.rand = np.random.RandomState(self.seed)
+        self._generate_gaussian_random_floor()
 
     def _generate_floor(self):
         tile_position = b2Vec2(-5, 0)
@@ -73,10 +74,25 @@ class Floor(object):
             self.world.DestroyBody(tile)
 
     def _generate_gaussian_random_floor(self):
+        threshold = get_boxcar_constant('tile_gaussian_threshold')
+        denominator = get_boxcar_constant('tile_gaussian_denominator')
+        mu = get_boxcar_constant('tile_angle_mu')
+        std = get_boxcar_constant('tile_angle_std')
+
         tile_position = b2Vec2(-5, 0)
-        threshold = bcc['tile_gaussian_threshold']
-        denominator = 
+        #@TODO: Add equation explaining this
         for i in range(self.num_tiles):
             numerator = min(i, threshold)
-            scale = min(float(numerator) / threshold, 1.0)
+            scale = min(float(numerator) / denominator, 1.0)
+            angle = self.rand.normal(mu, std) * scale
+            floor_tile = create_floor_tile(self.world, tile_position, angle)
+            self.floor_tiles.append(floor_tile)
+
+            t = 1
+            if angle < 0:
+                t = 0
+
+            # @TODO: Fix this. For whatever reason B2D rearranges the vertices. I should track a point during its creation instead
+            world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[t])
+            tile_position = world_coord
             

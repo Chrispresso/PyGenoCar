@@ -1,5 +1,5 @@
 from Box2D import *
-from .utils import boxcar_constant as bcc
+from .utils import get_boxcar_constant
 
 
 class Wheel(object):
