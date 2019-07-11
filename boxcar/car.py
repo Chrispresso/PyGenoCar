@@ -10,15 +10,24 @@ import math
 
 class Car(object):
     def __init__(self, world: b2World, wheels: List[Wheel], wheel_vertices: List[int], 
-                 chassis_vertices: List[b2Vec2]=None, chassis_densities: List[float]=None) -> None:
+                 chassis_vertices: List[b2Vec2], chassis_densities: List[float],
+                 winning_tile: b2Vec2) -> None:
         self.world = world
         self.wheels = wheels
         self.wheel_vertices = wheel_vertices
         self.chassis_vertices = chassis_vertices
         self.chassis_densities = chassis_densities
+        self.winning_tile = winning_tile
+        self.is_winner = False
 
         self.chassis = create_chassis(self.world, self.chassis_vertices, self.chassis_densities)
 
+        self.is_alive = True
+        self.frames = 0
+        self.max_tries = get_boxcar_constant('car_max_tries')
+        self.num_failures = 0
+        self.max_position = -100
+        self._destroyed = False
 
         # Calculate mass of car
         self.mass = self.chassis.mass
@@ -42,20 +51,18 @@ class Car(object):
             joint_def.bodyB = self.wheels[i].body
             world.CreateJoint(joint_def)
 
-        self.is_alive = True
-        self.frames = 0
-        self.max_tries = get_boxcar_constant('car_max_tries')
-        self.num_failures = 0
-        self.max_position = -100
-        self._destroyed = False
-
-
     def update(self) -> bool:
         if not self.is_alive:
             return False
 
         self.frames += 1
         current_position = self.position.x
+        print(current_position, self.winning_tile.position.x)
+        # Did we win?
+        if current_position > self.winning_tile.position.x:
+            self.is_winner = True
+            self.is_alive = False
+            self._destroy()
         # If we advanced past our max position, reset failures and max position
         if current_position > self.max_position:
             self.num_failures = 0
@@ -97,7 +104,7 @@ class Car(object):
 
 
 
-def create_random_car(world: b2World):
+def create_random_car(world: b2World, winning_tile: b2Vec2):
     # Create a number of random wheels.
     # Each wheel will have a random radius and density
     num_wheels = random.randint(get_boxcar_constant('min_num_wheels'), get_boxcar_constant('max_num_wheels') + 1)
@@ -125,7 +132,7 @@ def create_random_car(world: b2World):
 
     wheel_verts = list(range(num_wheels))
     rand.shuffle(wheel_verts)
-    return Car(world, wheels, wheel_verts, chassis_vertices, densities)
+    return Car(world, wheels, wheel_verts, chassis_vertices, densities, winning_tile)
 
 
 def create_random_chassis(world: b2World) -> b2Body:

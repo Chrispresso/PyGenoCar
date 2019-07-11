@@ -22,7 +22,7 @@ class Window(QMainWindow):
         self.height = 500
         self.floor = Floor(self.world)
         self.chassis = create_random_chassis(self.world)
-        self.car = create_random_car(self.world)
+        self.car = create_random_car(self.world, self.floor.winning_tile)
 
         # Camera stuff
         self._camera = b2Vec2()

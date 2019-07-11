@@ -6,12 +6,12 @@ boxcar_constant = {
     'floor_tile_height': (.03, float),
     'floor_tile_width': (.3, float),
     'max_floor_tiles': (300, int),
-    'floor_creation_type': ('gaussian', str),
+    'floor_creation_type': ('ramp', str),
         ### Floor - Gaussian random. Used when 'floor_creation_type' == 'gaussian' ###
         # Only needed if using gaussian random floor creation
         'tile_angle_mu': (8, (int, float)),
         'tile_angle_std': (15, (int, float)),
-        'tile_gaussian_denominator': ('tile_gaussian_threshold', (int, float)),
+        'tile_gaussian_denominator': ('tile_gaussian_threshold', float),
         'tile_gaussian_threshold': ('max_floor_tiles', int),
 
         ### Floor - ramp. Used when 'floor_creation_type' == 'ramp' ###
@@ -56,38 +56,41 @@ boxcar_constant = {
 
 }
 
-def _get_value_and_requested_type(value: Any, requested_type: Any) -> Tuple[Any, Any]:
-    if isinstance(requested_type, tuple):
-        if float in requested_type and not None in requested_type:
-            value = float(value)
-            requested_type = float
-        elif str in requested_type and isinstance(value, str):
-            value = value
-            requested_type = str
-        elif float in requested_type and isinstance(value, int):
-            value = float(value)
-            requested_type = float
-    elif requested_type is float and isinstance(value, int):
-        value = requested_type(value)
-        requested_type = float
-
-    return value, requested_type
+def _verify_constants() -> None:
+    failed = []
+    for constant in boxcar_constant:
+        try:
+            get_boxcar_constant(constant)
+        except:
+            failed.append(constant)
+        
+    if failed:
+        failed_constants = '\n'.join(fail for fail in failed)
+        raise Exception('The following constants have invalid values for their types:\n{}'.format(failed_constants))
 
 def get_boxcar_constant(constant: str) -> Any:
     """
     Get the end value represented by the constant you are searching for
     """
-    try:
-        value, requested_type = boxcar_constant[constant]
-        value, requested_type = _get_value_and_requested_type(value, requested_type)
+    value, requested_type = boxcar_constant[constant]
 
-        while not isinstance(value, requested_type):
-            value, requested_type = boxcar_constant[value]
-            value, requested_type = _get_value_and_requested_type(value, requested_type)
+    while value in boxcar_constant:
+        value, _ = boxcar_constant[value]
 
-        value = requested_type(value)
-
-    except:
-        value = None
+    # Are there multiple options of what the value can be?
+    if isinstance(requested_type, tuple):
+        # If the value is None and we allow None as an option, that is okay
+        if value is None and type(None) in requested_type:
+            pass
+        # If the value is None and we don't allow that as an option, raise an exception
+        elif value is None and type(None) not in requested_type:
+            raise Exception('constant "{}" contains value: None, which is of type NoneType. Expected type: {}'.format(
+                constant, requested_type
+            ))
+        # If value is not None and float is an option, use that. Float will take priority over int as well then
+        elif value and float in requested_type:
+            value = float(value)
+    elif value and requested_type is float:
+        value = float(value)
     
     return value
