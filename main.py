@@ -50,12 +50,15 @@ class Window(QMainWindow):
         Main update method used. Called once every (1/FPS) second.
         """
         self.world.Step(1./FPS, 10, 6)
+        self.car.update()
         diff_x = self._camera.x - self.car.chassis.position.x
         diff_y = self._camera.y - self.car.chassis.position.y
         self._camera.x -= self._camera_speed * diff_x #diff_x # self._camera_speed * diff_x
         self._camera.y -= self._camera_speed * diff_y #diff_y # self._camera_speed * diff_y
         self.world.ClearForces()
         self.update()
+
+        
 
     def _set_painter_solid(self, painter: QPainter, color: Qt.GlobalColor, with_antialiasing: bool = True):
         painter.setPen(QPen(color, 1./scale, Qt.SolidLine))

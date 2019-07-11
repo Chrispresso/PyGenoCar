@@ -57,8 +57,8 @@ class Floor(object):
         self.floor_tiles: List[b2Body] = []
         self.rand = np.random.RandomState(self.seed)
         # self._generate_gaussian_random_floor()
-        # self._generate_ramp()
-        self._create_jagged_floor()
+        self._generate_ramp()
+        # self._create_jagged_floor()
 
     def _generate_floor(self):
         tile_position = b2Vec2(-5, 0)

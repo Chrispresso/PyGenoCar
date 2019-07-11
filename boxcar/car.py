@@ -42,6 +42,61 @@ class Car(object):
             joint_def.bodyB = self.wheels[i].body
             world.CreateJoint(joint_def)
 
+        self.is_alive = True
+        self.frames = 0
+        self.max_tries = get_boxcar_constant('car_max_tries')
+        self.num_failures = 0
+        self.max_position = -100
+        self._destroyed = False
+
+
+    def update(self) -> bool:
+        if not self.is_alive:
+            return False
+
+        self.frames += 1
+        current_position = self.position.x
+        # If we advanced past our max position, reset failures and max position
+        if current_position > self.max_position:
+            self.num_failures = 0
+            self.max_position = current_position
+        # If we have not improved or are going very slow, update failures and destroy if needed
+        elif current_position <= self.max_tries or self.linear_velocity.x < .001:
+            self.num_failures += 1
+            if self.num_failures > self.max_tries:
+                self.is_alive = False
+        
+        if not self.is_alive and not self._destroyed:
+            self._destroy()
+        
+        return True
+
+    def _destroy(self) -> None:
+        self.world.DestroyBody(self.chassis)
+        for wheel in self.wheels:
+            self.world.DestroyBody(wheel.body)
+        self._destroyed = True
+
+
+    @property
+    def linear_velocity(self) -> b2Vec2:
+        return self.chassis.linearVelocity
+
+    @linear_velocity.setter
+    def linear_velocity(self, value):
+        # Not actually read only, but don't allow it to be set
+        raise Exception('linear velocity is read only!')
+
+    @property
+    def position(self) -> b2Vec2:
+        return self.chassis.position
+
+    @position.setter
+    def position(self, value):
+        raise Exception('position is read only!')
+
+
+
 def create_random_car(world: b2World):
     # Create a number of random wheels.
     # Each wheel will have a random radius and density
