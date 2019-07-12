@@ -3,10 +3,10 @@ from typing import Any, Tuple
 # Constants
 boxcar_constant = {
     ### Floor ###
-    'floor_tile_height': (.03, float),
-    'floor_tile_width': (.3, float),
-    'max_floor_tiles': (300, int),
-    'floor_creation_type': ('ramp', str),
+    'floor_tile_height': (.15, float),
+    'floor_tile_width': (1.5, float),
+    'max_floor_tiles': (15, int),
+    'floor_creation_type': ('gaussian', str),
         ### Floor - Gaussian random. Used when 'floor_creation_type' == 'gaussian' ###
         # Only needed if using gaussian random floor creation
         'tile_angle_mu': (8, (int, float)),
@@ -52,7 +52,10 @@ boxcar_constant = {
     'max_wheel_radius': (0.5, float),
 
     # World
-    'gravity': ((0, -9.8), tuple)  # X/Y direction
+    'gravity': ((0, -9.8), tuple),  # X/Y direction
+
+    # Genetic Algorithm
+    'num_cars_in_generation': (5, int)
 
 }
 

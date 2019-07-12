@@ -22,7 +22,8 @@ class Window(QMainWindow):
         self.height = 500
         self.floor = Floor(self.world)
         self.chassis = create_random_chassis(self.world)
-        self.car = create_random_car(self.world, self.floor.winning_tile)
+        self.leader: Car = None  # Track the leader
+        self.new_generation()
 
         # Camera stuff
         self._camera = b2Vec2()
@@ -49,16 +50,33 @@ class Window(QMainWindow):
         """
         Main update method used. Called once every (1/FPS) second.
         """
-        self.world.Step(1./FPS, 10, 6)
-        self.car.update()
-        diff_x = self._camera.x - self.car.chassis.position.x
-        diff_y = self._camera.y - self.car.chassis.position.y
-        self._camera.x -= self._camera_speed * diff_x #diff_x # self._camera_speed * diff_x
-        self._camera.y -= self._camera_speed * diff_y #diff_y # self._camera_speed * diff_y
+
+        for car in self.cars:
+            if not car.is_alive:
+                continue
+
+            if not car.update():
+                if car == self.leader:
+                    self.find_new_leader()
+            else:
+                car_pos = car.position.x
+                if car_pos > self.leader.position.x:
+                    self.leader = car
+
+        # Did all the cars die?
+        if not self.leader:
+            print('new generation')
+            self.new_generation()
+        else:
+            diff_x = self._camera.x - self.leader.chassis.position.x
+            diff_y = self._camera.y - self.leader.chassis.position.y
+            self._camera.x -= self._camera_speed * diff_x #diff_x # self._camera_speed * diff_x
+            self._camera.y -= self._camera_speed * diff_y #diff_y # self._camera_speed * diff_y
+        
         self.world.ClearForces()
         self.update()
+        self.world.Step(1./FPS, 10, 6)
 
-        
 
     def _set_painter_solid(self, painter: QPainter, color: Qt.GlobalColor, with_antialiasing: bool = True):
         painter.setPen(QPen(color, 1./scale, Qt.SolidLine))
@@ -72,8 +90,19 @@ class Window(QMainWindow):
         self.show()
 
     def _draw_floor(self, painter: QPainter):
+        #@TODO: Make this more efficient. Only need to draw things that are currently on the screen or about to be on screen
         for tile in self.floor.floor_tiles:
-            self.draw_polygon(painter, tile)
+            if tile is self.floor.winning_tile:
+                painter.setPen(QPen(Qt.black, 1./scale, Qt.SolidLine))
+                painter.setBrush(QBrush(Qt.green, Qt.SolidPattern))
+                painter.setRenderHint(QPainter.Antialiasing)
+                local_points: List[b2Vec2] = tile.fixtures[0].shape.vertices
+                world_coords = [tile.GetWorldPoint(point) for point in local_points]
+                qpoints = [QPointF(coord[0], coord[1]) for coord in world_coords]
+                polyf = QPolygonF(qpoints)
+                painter.drawPolygon(polyf)
+            else:
+                self.draw_polygon(painter, tile)
 
     def draw_circle(self, painter: QPainter, body: b2Body) -> None:
         for fixture in body.fixtures:
@@ -92,10 +121,9 @@ class Window(QMainWindow):
                 painter.drawLine(p0, p1)
 
 
-    def draw_polygon(self, painter: QPainter, body: b2Body) -> None:
-        painter.setPen(QPen(Qt.black, 1./scale, Qt.SolidLine))
-        painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
-        painter.setRenderHint(QPainter.Antialiasing)
+    def draw_polygon(self, painter: QPainter, body: b2Body, adjust_painter: bool = True) -> None:
+        if adjust_painter:
+            self._set_painter_solid(painter, Qt.black)
 
         for fixture in body.fixtures:
             if isinstance(fixture.shape, b2PolygonShape):
@@ -131,14 +159,32 @@ class Window(QMainWindow):
         self._draw_floor(painter)
 
         # self.draw_polygon(painter, self.chassis)
-        self._draw_car(painter, self.car)
+        for car in self.cars:
+            self._draw_car(painter, car)
         # for fixture in self.chassis.fixtures:
         #     print([self.chassis.GetWorldPoint(vert) for vert in fixture.shape.vertices])
 
+    def new_generation(self):
+        self.cars = [create_random_car(self.world, self.floor.winning_tile) for _ in range(get_boxcar_constant('num_cars_in_generation'))]
+        self.find_new_leader()
 
+    def find_new_leader(self):
+        max_x = -1
+        leader: Car = None
+        for car in self.cars:
+            # Can't be a leader if you're dead
+            if not car.is_alive:
+                continue
+
+            car_pos = car.position.x
+            if car_pos > max_x:
+                leader = car
+                max_x = car_pos
+
+        self.leader = leader
 
 if __name__ == "__main__":
-    world = b2World()
+    world = b2World(get_boxcar_constant('gravity'))
     App = QApplication(sys.argv)
     window = Window(world)
     sys.exit(App.exec_())

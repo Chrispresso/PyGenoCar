@@ -11,7 +11,7 @@ class Wheel(object):
         # Create body def
         body_def = b2BodyDef()
         body_def.type = b2_dynamicBody
-        body_def.position = b2Vec2(0, 0)
+        body_def.position = b2Vec2(0, 1)
         self.body = world.CreateBody(body_def)
 
         # Create fixture def + circle for wheel

@@ -57,12 +57,13 @@ class Car(object):
 
         self.frames += 1
         current_position = self.position.x
-        print(current_position, self.winning_tile.position.x)
         # Did we win?
         if current_position > self.winning_tile.position.x:
             self.is_winner = True
             self.is_alive = False
             self._destroy()
+            print('winnnerr')
+            return False
         # If we advanced past our max position, reset failures and max position
         if current_position > self.max_position:
             self.num_failures = 0
@@ -75,6 +76,7 @@ class Car(object):
         
         if not self.is_alive and not self._destroyed:
             self._destroy()
+            return False
         
         return True
 
@@ -162,7 +164,7 @@ def create_chassis(world: b2World, vertices: List[b2Vec2], densities: List[float
     # Create body definition
     body_def = b2BodyDef()
     body_def.type = b2_dynamicBody
-    body_def.position = b2Vec2(0, 4)
+    body_def.position = b2Vec2(0, 1)
 
     body = world.CreateBody(body_def)
 

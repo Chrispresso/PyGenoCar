@@ -105,14 +105,7 @@ class Floor(object):
             world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[t])
             tile_position = world_coord
 
-        self.winning_tile = self.floor_tiles[-1]
-
-        # Create vertical stopping wall
-        for i in range(5):
-            floor_tile = create_floor_tile(self.world, tile_position, 90)
-            self.floor_tiles.append(floor_tile)
-            world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
-            tile_position = b2Vec2(world_coord.x - get_boxcar_constant('floor_tile_height'), world_coord.y)
+        self._create_stopping_zone(tile_position)
 
             
     def _generate_ramp(self):
@@ -180,14 +173,7 @@ class Floor(object):
             world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
             tile_position = world_coord
 
-        self.winning_tile = self.floor_tiles[-1]
-
-        # Create vertical stopping wall
-        for i in range(5):
-            floor_tile = create_floor_tile(self.world, tile_position, 90)
-            self.floor_tiles.append(floor_tile)
-            world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
-            tile_position = b2Vec2(world_coord.x - get_boxcar_constant('floor_tile_height'), world_coord.y)
+        self._create_stopping_zone(tile_position)
 
     def _create_jagged_floor(self):
         tile_position = b2Vec2(-5, 0)
@@ -206,11 +192,32 @@ class Floor(object):
             world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[t])
             tile_position = world_coord
 
-        self.winning_tile = self.floor_tiles[-1]
+        self._create_stopping_zone(tile_position)
 
-        # Create vertical stopping wall
-        for i in range(5):
+    def _create_stopping_zone(self, tile_position: b2Vec2) -> None:
+        max_car_size = (get_boxcar_constant('max_chassis_axis') * 2.0) + (2.0 * get_boxcar_constant('max_wheel_radius'))
+        tile_width = get_boxcar_constant('floor_tile_width')
+        tiles_needed_before_wall = math.ceil(max_car_size / tile_width)
+        additional_landing_zone = 0.0
+        additional_tiles_needed = additional_landing_zone / tile_width
+        total_tiles_needed = math.ceil(tiles_needed_before_wall + additional_tiles_needed + 1)
+
+        # Create a landing zone
+        for i in range(total_tiles_needed):
+            floor_tile = create_floor_tile(self.world, tile_position, 0)
+            self.floor_tiles.append(floor_tile)
+            world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
+            tile_position = world_coord
+
+            if i == tiles_needed_before_wall:
+                self.winning_tile = self.floor_tiles[-1]
+
+        # Create wall
+        num_wall_tiles = math.ceil(max_car_size * 2.0 / tile_width)
+        for i in range(num_wall_tiles):
             floor_tile = create_floor_tile(self.world, tile_position, 90)
             self.floor_tiles.append(floor_tile)
             world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
+            # Adjust the tile to the left a bit so they overlap and form a wall
             tile_position = b2Vec2(world_coord.x - get_boxcar_constant('floor_tile_height'), world_coord.y)
+    
