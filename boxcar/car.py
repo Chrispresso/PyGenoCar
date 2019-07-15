@@ -11,13 +11,14 @@ import math
 class Car(object):
     def __init__(self, world: b2World, wheels: List[Wheel], wheel_vertices: List[int], 
                  chassis_vertices: List[b2Vec2], chassis_densities: List[float],
-                 winning_tile: b2Vec2) -> None:
+                 winning_tile: b2Vec2, lowest_y_pos: float) -> None:
         self.world = world
         self.wheels = wheels
         self.wheel_vertices = wheel_vertices
         self.chassis_vertices = chassis_vertices
         self.chassis_densities = chassis_densities
         self.winning_tile = winning_tile
+        self.lowest_y_pos = lowest_y_pos
         self.is_winner = False
 
         self.chassis = create_chassis(self.world, self.chassis_vertices, self.chassis_densities)
@@ -56,23 +57,29 @@ class Car(object):
             return False
 
         self.frames += 1
-        current_position = self.position.x
+        current_position = self.position
         # Did we win?
-        if current_position > self.winning_tile.position.x:
+        if current_position.x > self.winning_tile.position.x:
             self.is_winner = True
             self.is_alive = False
             self._destroy()
             print('winnnerr')
             return False
         # If we advanced past our max position, reset failures and max position
-        if current_position > self.max_position:
+        if current_position.x > self.max_position and current_position.y > self.lowest_y_pos:
             self.num_failures = 0
-            self.max_position = current_position
+            self.max_position = current_position.x
+            return True
+
         # If we have not improved or are going very slow, update failures and destroy if needed
-        elif current_position <= self.max_tries or self.linear_velocity.x < .001:
+        if current_position.x <= self.max_position or self.linear_velocity.x < .001:
             self.num_failures += 1
-            if self.num_failures > self.max_tries:
-                self.is_alive = False
+
+        if current_position.y < self.lowest_y_pos:
+            self.num_failures += 2
+
+        if self.num_failures > self.max_tries:
+            self.is_alive = False
         
         if not self.is_alive and not self._destroyed:
             self._destroy()
@@ -106,7 +113,7 @@ class Car(object):
 
 
 
-def create_random_car(world: b2World, winning_tile: b2Vec2):
+def create_random_car(world: b2World, winning_tile: b2Vec2, lowest_y_pos: float):
     # Create a number of random wheels.
     # Each wheel will have a random radius and density
     num_wheels = random.randint(get_boxcar_constant('min_num_wheels'), get_boxcar_constant('max_num_wheels') + 1)
@@ -134,7 +141,7 @@ def create_random_car(world: b2World, winning_tile: b2Vec2):
 
     wheel_verts = list(range(num_wheels))
     rand.shuffle(wheel_verts)
-    return Car(world, wheels, wheel_verts, chassis_vertices, densities, winning_tile)
+    return Car(world, wheels, wheel_verts, chassis_vertices, densities, winning_tile, lowest_y_pos)
 
 
 def create_random_chassis(world: b2World) -> b2Body:

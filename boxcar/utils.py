@@ -6,7 +6,7 @@ boxcar_constant = {
     'floor_tile_height': (.15, float),
     'floor_tile_width': (1.5, float),
     'max_floor_tiles': (15, int),
-    'floor_creation_type': ('gaussian', str),
+    'floor_creation_type': ('ramp', str),
         ### Floor - Gaussian random. Used when 'floor_creation_type' == 'gaussian' ###
         # Only needed if using gaussian random floor creation
         'tile_angle_mu': (8, (int, float)),
@@ -17,17 +17,17 @@ boxcar_constant = {
         ### Floor - ramp. Used when 'floor_creation_type' == 'ramp' ###
         # Only needed if using ramp floor creation
         # If 'ramp_constant_angle' is defined, it will use the constant ramp
-        'ramp_constant_angle': (10, (float, type(None))),
-        'ramp_constant_distance': (20, (float, type(None))),
+        'ramp_constant_angle': (None, (float, type(None))),
+        'ramp_constant_distance': (None, (float, type(None))),
         
         # If 'ramp_constant_angle' is not defined, it will use an increasing ramp
         'ramp_increasing_angle': (1.2, (float, type(None))),
         'ramp_start_angle': (1, (float, type(None))),
         'ramp_increasing_type': ('multiply', (str, type(None))),
 
-        'ramp_max_angle': (10, float),
+        'ramp_max_angle': (45, float),
         'ramp_approach_distance': (10, float),
-        'ramp_distance_needed_to_jump': (.2, float),
+        'ramp_distance_needed_to_jump': (5, float),
 
         ### Jagged - ramp. Used when 'floor_creation_type' == 'jagged' ###
         # Only needed if using jaged floor creation

@@ -65,6 +65,14 @@ class Floor(object):
         elif self.floor_creation_type == 'jagged':
             self._create_jagged_floor()
 
+        self.lowest_y = 10
+        for floor_tile in self.floor_tiles:
+            world_coords = [floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[i]) for i in range(4)]
+            for coord in world_coords:
+                if coord.y < self.lowest_y:
+                    self.lowest_y = coord.y
+
+
         # self.winning_tile = None
 
     def _generate_floor(self):
