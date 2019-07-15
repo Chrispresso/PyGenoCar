@@ -1,9 +1,10 @@
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QScrollArea, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QFormLayout
 from PyQt5.QtGui import QPainter, QBrush, QPen, QPolygonF
 from PyQt5.QtCore import Qt, QPointF, QTimer, QRect
 from boxcar.floor import *
 from boxcar.car import *
+from boxcar.utils import *
 import sys
 import time
 from typing import Tuple
@@ -69,7 +70,7 @@ class StatsWindow(QWidget):
     def __init__(self, parent, size):
         super().__init__(parent)
         self.size = size
-    
+
     def paintEvent(self, event):
         painter = QPainter(self)
         draw_border(painter, self.size)
@@ -88,6 +89,117 @@ class GeneticAlgorithmWindow(QWidget):
     def __init__(self, parent, size):
         super().__init__(parent)
         self.size = size
+        self.ga_settings = None
+        self._ga_stats_edits = {}
+
+        self.init_window()
+
+    def _create_ga_row_edit(self, entry: str, text: str, is_range: bool = False) -> None:
+        label = QLabel()
+        label.setText(text)
+        edit = QLineEdit()
+        if entry not in boxcar_constant and not is_range:
+            raise Exception('If entry is not a range, it must be named the same as defined in boxcar_constant')
+        elif entry in self._ga_stats_edits:
+            raise Exception('Entry already exists')
+        else:
+            value = None
+            if is_range:
+                # Find '_range' and set idx
+                name = entry[:entry.index('_range')]
+                # Find the 'min_name' and 'max_name' from the constants
+                min_name = 'min_' + name
+                max_name = 'max_' + name
+                if min_name not in boxcar_constant:
+                    raise Exception('{} must be defined in boxcar_constant'.format(min_name))
+                if max_name not in boxcar_constant:
+                    raise Exception('{} must be defined in boxcar_constant'.format(max_name))
+                # Format value
+                value = '{}, {}'.format(get_boxcar_constant(min_name),
+                                        get_boxcar_constant(max_name))
+            else:
+                value = str(get_boxcar_constant(entry))
+
+            edit.setText(value)
+            self._ga_stats_edits[entry] = edit
+            self.ga_settings.addRow(label, self._ga_stats_edits[entry])
+
+    def init_window(self):
+        # self.scroll_area = QScrollArea(self)
+        self.ga_settings = QFormLayout()
+        blank_label = QLabel().setText('')
+        ### Car Specific Edits ###
+        car_specific_label = QLabel()
+        car_specific_label.setText('Car Specific Edits:')
+        self.ga_settings.addRow(car_specific_label, blank_label)
+        # Number of wheels range
+        self._create_ga_row_edit('num_wheels_range', 'Num Wheels (Range):', is_range=True)    
+        # Wheel radius range
+        self._create_ga_row_edit('wheel_radius_range', 'Wheel Radius (Range):', is_range=True)
+        # Wheel density range
+        self._create_ga_row_edit('wheel_density_range', 'Wheel Density (Range):', is_range=True)
+        # Chassis axis range
+        self._create_ga_row_edit('chassis_axis_range', 'Chassis Axis (Range):', is_range=True)
+        # Max tries
+        self._create_ga_row_edit('car_max_tries', 'Max Tries (int):')
+        ### Floor Specific Edits ###
+        floor_specific_label = QLabel()
+        floor_specific_label.setText('Floor Specific Edits:')
+        self.ga_settings.addRow(floor_specific_label, blank_label)
+        # Floor tile height
+        self._create_ga_row_edit('floor_tile_height', 'Tile Height (float):')
+        # Floor tile width
+        self._create_ga_row_edit('floor_tile_width', 'Tile Width (float):')
+        # Floor type
+        self._create_ga_row_edit('floor_creation_type', 'Floor type (str):')
+        # Max floor tiles
+        self._create_ga_row_edit('max_floor_tiles', 'Max Tiles (int):')
+        ### Floor - Gaussian ###
+        floor_gaussian_specific_label = QLabel()
+        floor_gaussian_specific_label.setText("Gaussian Specific\n( Floor type = 'gaussian' )")
+        self.ga_settings.addRow(floor_gaussian_specific_label, blank_label)
+        # mu tile angle
+        self._create_ga_row_edit('tile_angle_mu', 'Mean Tile Angle:')
+        # std tile angle
+        self._create_ga_row_edit('tile_angle_std', 'Std Tile Angle:')
+        ### Floor - Ramp ###
+        floor_ramp_specific_label = QLabel()
+        floor_ramp_specific_label.setText("Ramp Specific\n( Floor type = 'ramp' )")
+        self.ga_settings.addRow(floor_ramp_specific_label, blank_label)
+        # Ramp constant angle
+        self._create_ga_row_edit('ramp_constant_angle', 'Ramp Constant Angle:')
+        # Ramp constant distance
+        self._create_ga_row_edit('ramp_constant_distance', 'Ramp Constant Distance:')
+        # Ramp increasing angle
+        self._create_ga_row_edit('ramp_increasing_angle', 'Ramp Increasing Angle:')
+        # Ramp start angle
+        self._create_ga_row_edit('ramp_start_angle', 'Ramp Start Angle:')
+        # Ramp increasing type
+        self._create_ga_row_edit('ramp_increasing_type', 'Ramp Increasing Type:')
+        # Ramp max angle
+        self._create_ga_row_edit('ramp_max_angle', 'Ramp Max Angle:')
+        # Ramp approach distance
+        self._create_ga_row_edit('ramp_approach_distance', 'Ramp Approach Distance:')
+        # Ramp distance to jump
+        self._create_ga_row_edit('ramp_distance_needed_to_jump', 'Distance to Jump:')
+        # Jagged increasing angle
+        self._create_ga_row_edit('jagged_increasing_angle', 'Jagged Increasing Angle:')
+        # Jagged decreasing angle
+        self._create_ga_row_edit('jagged_decreasing_angle', 'Jagged Decreasing Angle:')
+        
+
+
+        h =QHBoxLayout()
+        self.scroll_area = QScrollArea(self)
+        v2 = QVBoxLayout()
+        v2.addLayout(self.ga_settings)
+        self.scroll_area.setLayout(v2)
+        self.scroll_area.setWidgetResizable(True)
+
+        self.vbox = QVBoxLayout()
+        self.vbox.addWidget(self.scroll_area)
+
+        self.setLayout(self.vbox)
     
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -149,7 +261,6 @@ class GameWindow(QWidget):
         self.world.ClearForces()
         self.update()
         self.world.Step(1./FPS, 10, 6)
-        print(self.leader.position.y, self.leader.lowest_y_pos)
 
     def _draw_car(self, painter: QPainter, car: Car):
         """
