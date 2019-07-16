@@ -8,6 +8,9 @@ from boxcar.utils import *
 import sys
 import time
 from typing import Tuple
+from copy import deepcopy
+
+g_best_car = None
 
 ## Constants ##
 scale = 70
@@ -22,12 +25,15 @@ def draw_border(painter: QPainter, size: Tuple[float, float]) -> None:
     polygon = QPolygonF(qpoints)
     painter.drawPolygon(polygon)
 
-def draw_circle(painter: QPainter, body: b2Body) -> None:
+def draw_circle(painter: QPainter, body: b2Body, local=False) -> None:
     for fixture in body.fixtures:
         if isinstance(fixture.shape, b2CircleShape):
             _set_painter_solid(painter, Qt.black)
             radius = fixture.shape.radius
-            center = body.GetWorldPoint(fixture.shape.pos)
+            if local:
+                center = fixture.shape.pos
+            else:
+                center = body.GetWorldPoint(fixture.shape.pos)
 
             # Fill circle
             painter.drawEllipse(QPointF(center.x, center.y), radius, radius)
@@ -39,7 +45,7 @@ def draw_circle(painter: QPainter, body: b2Body) -> None:
             painter.drawLine(p0, p1)
 
 
-def draw_polygon(painter: QPainter, body: b2Body, adjust_painter: bool = True) -> None:
+def draw_polygon(painter: QPainter, body: b2Body, adjust_painter: bool = True, local=False) -> None:
     if adjust_painter:
         _set_painter_solid(painter, Qt.black)
 
@@ -47,7 +53,10 @@ def draw_polygon(painter: QPainter, body: b2Body, adjust_painter: bool = True) -
         if isinstance(fixture.shape, b2PolygonShape):
             polygon: b2PolygonShape = fixture.shape
             local_points: List[b2Vec2] = polygon.vertices
-            world_coords = [body.GetWorldPoint(point) for point in local_points]
+            if local:
+                world_coords = local_points
+            else:
+                world_coords = [body.GetWorldPoint(point) for point in local_points]
             for i in range(len(world_coords)):
                 p0 = world_coords[i]
                 if i == len(world_coords)-1:
@@ -80,10 +89,28 @@ class BestCarWindow(QWidget):
     def __init__(self, parent, size):
         super().__init__(parent)
         self.size = size
+        global g_best_car
+        # self.best_car = None
+        # Create a timer to run given the desired FPS
+        self._timer = QTimer()
+        self._timer.timeout.connect(self.update)
+        self._timer.start(1000//FPS)
+        
 
     def paintEvent(self, event):
+        global g_best_car
         painter = QPainter(self)
         draw_border(painter, self.size)
+        painter.translate(150, 110)
+        painter.scale(50, -50)
+        if g_best_car:
+            print('ehre')
+            for wheel in g_best_car.wheels:
+                draw_circle(painter, wheel.body, local=True)
+
+            draw_polygon(painter, g_best_car.chassis, local=True)
+        else:
+            pass
 
 class GeneticAlgorithmWindow(QWidget):
     def __init__(self, parent, size):
@@ -188,16 +215,23 @@ class GeneticAlgorithmWindow(QWidget):
         self._create_ga_row_edit('jagged_decreasing_angle', 'Jagged Decreasing Angle:')
         
 
-
-        h =QHBoxLayout()
-        self.scroll_area = QScrollArea(self)
-        v2 = QVBoxLayout()
-        v2.addLayout(self.ga_settings)
-        self.scroll_area.setLayout(v2)
+        ga_widget = QWidget()
+        ga_widget.setLayout(self.ga_settings)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidget(ga_widget)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll_area.setWidgetResizable(True)
+        
+        button_widget = QWidget()
+        hlayout = QHBoxLayout()
+        hlayout.addWidget(QPushButton('Apply'))
+        hlayout.addWidget(QPushButton('Reset'))
+        button_widget.setLayout(hlayout)
 
         self.vbox = QVBoxLayout()
         self.vbox.addWidget(self.scroll_area)
+        self.vbox.addWidget(button_widget)
 
         self.setLayout(self.vbox)
     
@@ -219,6 +253,8 @@ class GameWindow(QWidget):
         self.floor = Floor(self.world)
         self.chassis = create_random_chassis(self.world)
         self.leader: Car = None  # Track the leader
+        self.best_car_ever = None
+        self.cars = None
         self.new_generation()
 
         # Camera stuff
@@ -260,6 +296,7 @@ class GameWindow(QWidget):
         
         self.world.ClearForces()
         self.update()
+
         self.world.Step(1./FPS, 10, 6)
 
     def _draw_car(self, painter: QPainter, car: Car):
@@ -311,7 +348,28 @@ class GameWindow(QWidget):
         #     print([self.chassis.GetWorldPoint(vert) for vert in fixture.shape.vertices])
 
     def new_generation(self):
+        global g_best_car
+        if self.cars:
+            best_car = None
+            # If we have not found a best car yet, compare just the current generation
+            if not g_best_car:
+                best_pos = -1
+                for car in self.cars:
+                    if car.max_position > best_pos:
+                        best_car = car
+                        best_pos = car.max_position
+            else:
+                best_car = g_best_car
+                for car in self.cars:
+                    if car.max_position > best_car.max_position:
+                        best_car = car
+
+            if best_car != g_best_car:
+                g_best_car = best_car
+        print(g_best_car)
+
         self.cars = [create_random_car(self.world, self.floor.winning_tile, self.floor.lowest_y) for _ in range(get_boxcar_constant('num_cars_in_generation'))]
+        g_best_car = self.cars[0]
         self.find_new_leader()
 
     def find_new_leader(self):

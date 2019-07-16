@@ -55,7 +55,7 @@ boxcar_constant = {
     'gravity': ((0, -9.8), tuple),  # X/Y direction
 
     # Genetic Algorithm
-    'num_cars_in_generation': (5, int)
+    'num_cars_in_generation': (1, int)
 
 }
 
