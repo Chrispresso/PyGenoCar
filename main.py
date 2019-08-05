@@ -104,11 +104,10 @@ class BestCarWindow(QWidget):
         painter.translate(150, 110)
         painter.scale(50, -50)
         if g_best_car:
-            print('ehre')
             for wheel in g_best_car.wheels:
-                draw_circle(painter, wheel.body, local=True)
+                draw_circle(painter, wheel.body, local=False)
 
-            draw_polygon(painter, g_best_car.chassis, local=True)
+            draw_polygon(painter, g_best_car.chassis, local=False)
         else:
             pass
 
@@ -284,6 +283,7 @@ class GameWindow(QWidget):
                 if car_pos > self.leader.position.x:
                     self.leader = car
 
+
         # Did all the cars die?
         if not self.leader:
             print('new generation')
@@ -365,11 +365,12 @@ class GameWindow(QWidget):
                         best_car = car
 
             if best_car != g_best_car:
-                g_best_car = best_car
+                g_best_car = best_car.clone()
+
         print(g_best_car)
 
         self.cars = [create_random_car(self.world, self.floor.winning_tile, self.floor.lowest_y) for _ in range(get_boxcar_constant('num_cars_in_generation'))]
-        g_best_car = self.cars[0]
+        g_best_car = self.cars[0].clone()
         self.find_new_leader()
 
     def find_new_leader(self):
@@ -387,7 +388,7 @@ class GameWindow(QWidget):
 
         self.leader = leader
 
-class Window(QMainWindow):
+class MainWindow(QMainWindow):
     def __init__(self, world):
         super().__init__()
         self.world = world
@@ -441,5 +442,5 @@ class Window(QMainWindow):
 if __name__ == "__main__":
     world = b2World(get_boxcar_constant('gravity'))
     App = QApplication(sys.argv)
-    window = Window(world)
+    window = MainWindow(world)
     sys.exit(App.exec_())

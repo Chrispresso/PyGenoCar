@@ -11,7 +11,7 @@ import math
 class Car(object):
     def __init__(self, world: b2World, wheels: List[Wheel], wheel_vertices: List[int], 
                  chassis_vertices: List[b2Vec2], chassis_densities: List[float],
-                 winning_tile: b2Vec2, lowest_y_pos: float) -> None:
+                 winning_tile: b2Vec2, lowest_y_pos: float, fake: bool = False) -> None:
         self.world = world
         self.wheels = wheels
         self.wheel_vertices = wheel_vertices
@@ -38,19 +38,47 @@ class Car(object):
         #@TODO: This isn't right
         for wheel in self.wheels:
             torque = self.mass * abs(world.gravity.y) / wheel.radius
-            wheel.torque = torque
+            if fake:
+                wheel.torque = 0
+                wheel.friction = 1e10
+            else:
+                wheel.torque = torque
 
         joint_def = b2RevoluteJointDef()
         for i in range(len(self.wheels)):
             chassis_vertex = self.chassis_vertices[self.wheel_vertices[i]]
             joint_def.localAnchorA = chassis_vertex
             joint_def.localAnchorB =  self.wheels[i].body.fixtures[0].shape.pos
-            joint_def.maxMotorTorque = self.wheels[i].torque
-            joint_def.motorSpeed = -15  # @TODO: Make this random
-            joint_def.enableMotor = True
+            if fake:
+                joint_def.maxMotorTorque = 0
+                joint_def.motorSpeed = 0  # @TODO: Make this random
+                joint_def.enableMotor = False
+            else:
+                joint_def.maxMotorTorque = self.wheels[i].torque
+                joint_def.motorSpeed = -15  # @TODO: Make this random
+                joint_def.enableMotor = True
             joint_def.bodyA = self.chassis
             joint_def.bodyB = self.wheels[i].body
             world.CreateJoint(joint_def)
+
+    def clone(self):
+        world = self.world
+        wheels = []
+        for wheel in self.wheels:
+            radius = wheel.radius
+            density = wheel.density
+            restitution = wheel.restitution
+            wheels.append(Wheel(world, radius, density, restitution))
+
+        wheel_vertices = self.wheel_vertices[:]
+        chassis_vertices = self.chassis_vertices[:]
+        chassis_densities = self.chassis_densities[:]
+        winning_tile = self.winning_tile
+        lowest_y_pos = self.lowest_y_pos
+
+        return Car(world, wheels, wheel_vertices, 
+                 chassis_vertices, chassis_densities,
+                 winning_tile, lowest_y_pos, True)
 
     def update(self) -> bool:
         if not self.is_alive:
