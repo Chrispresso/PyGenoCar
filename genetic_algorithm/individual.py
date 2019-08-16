@@ -20,7 +20,6 @@ class Individual(object):
     def fitness(self, val):
         raise Exception('fitness property cannot be set. Use calculate_fitness instead')
 
-
     @abstractmethod
     def encode_chromosome(self):
         raise Exception('encode_chromosome function must be defined')
@@ -37,27 +36,3 @@ class Individual(object):
     @chromosome.setter
     def chromosome(self, val):
         raise Exception('chromosome property cannot be set.')
-
-    def __sub__(self, other: Union['Individual', np.ndarray]) -> np.ndarray:
-        p1_chromosome = self.chromosome
-        p2_chromosome = None
-        if isinstance(other, Individual):
-            p2_chromosome = other.chromosome
-        elif isinstance(other, np.ndarray):
-            p2_chromosome = other
-        
-        child_chromosome = p1_chromosome - p2_chromosome
-
-        return child_chromosome
-
-    def __add__(self, other: Union['Individual', np.ndarray]) -> np.ndarray:
-        p1_chromosome = self.chromosome
-        p2_chromosome = None
-        if isinstance(other, Individual):
-            p2_chromosome = other.chromosome
-        elif isinstance(other, np.ndarray):
-            p2_chromosome = other
-        
-        child_chromosome = p1_chromosome + p2_chromosome
-
-        return child_chromosome
