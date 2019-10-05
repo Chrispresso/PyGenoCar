@@ -5,6 +5,8 @@ from PyQt5.QtCore import Qt, QPointF, QTimer, QRect
 from boxcar.floor import *
 from boxcar.car import *
 from boxcar.utils import *
+from windows import SettingsWindow
+
 import sys
 import time
 from typing import Tuple
@@ -45,14 +47,21 @@ def draw_circle(painter: QPainter, body: b2Body, local=False) -> None:
             painter.drawLine(p0, p1)
 
 
-def draw_polygon(painter: QPainter, body: b2Body, adjust_painter: bool = True, local=False) -> None:
+def draw_polygon(painter: QPainter, body: b2Body, poly_type: str = '', adjust_painter: bool = True, local=False) -> None:
     if adjust_painter:
         _set_painter_solid(painter, Qt.black)
-
     for fixture in body.fixtures:
+        poly = []
+        # If we are drawing a chassis, determine fill color
+        if poly_type == 'chassis':
+            adjust = get_boxcar_constant('max_chassis_density') - get_boxcar_constant('min_chassis_density')
+            hue_ration = (fixture.density - get_boxcar_constant('min_chassis_density')) / adjust
+            color = QColor.fromHsvF(hue_ration, 1., .8)
+            painter.setBrush(QBrush(color, Qt.SolidPattern))
         if isinstance(fixture.shape, b2PolygonShape):
             polygon: b2PolygonShape = fixture.shape
             local_points: List[b2Vec2] = polygon.vertices
+            # poly = []
             if local:
                 world_coords = local_points
             else:
@@ -66,7 +75,12 @@ def draw_polygon(painter: QPainter, body: b2Body, adjust_painter: bool = True, l
 
                 qp0 = QPointF(*p0)
                 qp1 = QPointF(*p1)
-                painter.drawLine(qp0, qp1)
+                # painter.drawLine(qp0, qp1)
+                poly.append(qp0)
+                poly.append(qp1)
+            if poly:
+                painter.drawPolygon(QPolygonF(poly))
+    
 
 def _set_painter_solid(painter: QPainter, color: Qt.GlobalColor, with_antialiasing: bool = True):
     painter.setPen(QPen(color, 1./scale, Qt.SolidLine))
@@ -125,6 +139,8 @@ class BestCarWindow(QWidget):
             draw_polygon(painter, g_best_car.chassis, local=False)
         else:
             pass
+
+
 
 class GeneticAlgorithmWindow(QWidget):
     def __init__(self, parent, size):
@@ -318,7 +334,7 @@ class GameWindow(QWidget):
         for wheel in car.wheels:
             draw_circle(painter, wheel.body)
 
-        draw_polygon(painter, car.chassis)
+        draw_polygon(painter, car.chassis, poly_type='chassis')
 
     def _draw_floor(self, painter: QPainter):
         #@TODO: Make this more efficient. Only need to draw things that are currently on the screen or about to be on screen
@@ -439,11 +455,13 @@ class MainWindow(QMainWindow):
         self.game_window.setGeometry(QRect(0, 0, 800, 500))
         self.game_window.setObjectName('game_window')
 
-        self.ga_window = GeneticAlgorithmWindow(self.centralWidget, (300, 500))
-        self.ga_window.setGeometry(QRect(800, 0, 300, 500))
-        self.ga_window.setObjectName('ga_window')
+        # self.ga_window = GeneticAlgorithmWindow(self.centralWidget, (300, 500))
+        # self.ga_window.setGeometry(QRect(800, 0, 300, 500))
+        # self.ga_window.setObjectName('ga_window')
 
-
+        self.settings_window = SettingsWindow(self.centralWidget, (300, 500))
+        self.settings_window.setGeometry(QRect(800, 0, 300, 500))
+        self.settings_window.setObjectName('settings_window')
         
 
         # Add stats window
