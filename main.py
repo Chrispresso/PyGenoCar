@@ -1,6 +1,6 @@
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QScrollArea, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QFormLayout
-from PyQt5.QtGui import QPainter, QBrush, QPen, QPolygonF
+from PyQt5.QtGui import QPainter, QBrush, QPen, QPolygonF, QColor
 from PyQt5.QtCore import Qt, QPointF, QTimer, QRect
 from boxcar.floor import *
 from boxcar.car import *
@@ -75,10 +75,25 @@ def _set_painter_solid(painter: QPainter, color: Qt.GlobalColor, with_antialiasi
         painter.setRenderHint(QPainter.Antialiasing)
 
 
+class ColorGradient(QWidget):
+    def __init__(self, parent, size):
+        super().__init__(parent)
+        self. size = size
+
+    
+
+
 class StatsWindow(QWidget):
     def __init__(self, parent, size):
         super().__init__(parent)
         self.size = size
+
+        font = QtGui.QFont('Times', 11, QtGui.QFont.Normal)
+        font_bold = QtGui.QFont('Times', 11, QtGui.QFont.Bold)
+
+        # Create a grid layout to keep track of certain stats
+        self.grid = QtWidgets.QGridLayout()
+        self.grid.setContentsMargins(0, 0, 0, 0)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -262,9 +277,6 @@ class GameWindow(QWidget):
         self._camera.x
 
         # Create a timer to run given the desired FPS
-        self._timer = QTimer()
-        self._timer.timeout.connect(self._update)
-        self._timer.start(1000//FPS)
 
     def _update(self):
         """
@@ -399,6 +411,13 @@ class MainWindow(QMainWindow):
         self.height = 700
 
         self.init_window()
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._update)
+        self._timer.start(1000//FPS)
+
+    def _update(self) -> None:
+        # Update windows
+        self.game_window._update()
 
     def init_window(self):
         self.centralWidget = QWidget(self)
