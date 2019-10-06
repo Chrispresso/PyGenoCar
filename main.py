@@ -4,8 +4,8 @@ from PyQt5.QtGui import QPainter, QBrush, QPen, QPolygonF, QColor
 from PyQt5.QtCore import Qt, QPointF, QTimer, QRect
 from boxcar.floor import *
 from boxcar.car import *
-from boxcar.utils import *
-from windows import SettingsWindow
+from settings import *
+from windows import SettingsWindow, StatsWindow, draw_border
 
 import sys
 import time
@@ -18,19 +18,16 @@ g_best_car = None
 scale = 70
 FPS = 60
 
-def draw_border(painter: QPainter, size: Tuple[float, float]) -> None:
-    painter.setPen(QPen(Qt.black, 1, Qt.SolidLine))
-    painter.setBrush(QBrush(Qt.green, Qt.NoBrush))
-    painter.setRenderHint(QPainter.Antialiasing)
-    points = [(0, 0), (size[0], 0), (size[0], size[1]), (0, size[1])]
-    qpoints = [QPointF(point[0], point[1]) for point in points]
-    polygon = QPolygonF(qpoints)
-    painter.drawPolygon(polygon)
 
 def draw_circle(painter: QPainter, body: b2Body, local=False) -> None:
     for fixture in body.fixtures:
         if isinstance(fixture.shape, b2CircleShape):
-            _set_painter_solid(painter, Qt.black)
+            # Set the color of the circle to be based off wheel density
+            adjust = get_boxcar_constant('max_wheel_density') - get_boxcar_constant('min_wheel_density')
+            hue_ratio = (fixture.density - get_boxcar_constant('min_wheel_density')) / adjust
+            color = QColor.fromHsvF(hue_ratio, 1., .8)
+            painter.setBrush(QBrush(color, Qt.SolidPattern))
+
             radius = fixture.shape.radius
             if local:
                 center = fixture.shape.pos
@@ -41,7 +38,7 @@ def draw_circle(painter: QPainter, body: b2Body, local=False) -> None:
             painter.drawEllipse(QPointF(center.x, center.y), radius, radius)
 
             # Draw line (helps for visualization of how fast and direction wheel is moving)
-            _set_painter_solid(painter, Qt.green)
+            _set_painter_solid(painter, Qt.black)
             p0 = QPointF(center.x, center.y)
             p1 = QPointF(center.x + radius*math.cos(body.angle), center.y + radius*math.sin(body.angle))
             painter.drawLine(p0, p1)
@@ -49,19 +46,21 @@ def draw_circle(painter: QPainter, body: b2Body, local=False) -> None:
 
 def draw_polygon(painter: QPainter, body: b2Body, poly_type: str = '', adjust_painter: bool = True, local=False) -> None:
     if adjust_painter:
-        _set_painter_solid(painter, Qt.black)
+        _set_painter_clear(painter, Qt.black)
+
     for fixture in body.fixtures:
-        poly = []
-        # If we are drawing a chassis, determine fill color
-        if poly_type == 'chassis':
-            adjust = get_boxcar_constant('max_chassis_density') - get_boxcar_constant('min_chassis_density')
-            hue_ration = (fixture.density - get_boxcar_constant('min_chassis_density')) / adjust
-            color = QColor.fromHsvF(hue_ration, 1., .8)
-            painter.setBrush(QBrush(color, Qt.SolidPattern))
         if isinstance(fixture.shape, b2PolygonShape):
+            poly = []
+            # If we are drawing a chassis, determine fill color
+            if poly_type == 'chassis':
+                adjust = get_boxcar_constant('max_chassis_density') - get_boxcar_constant('min_chassis_density')
+                hue_ratio = (fixture.density - get_boxcar_constant('min_chassis_density')) / adjust
+                color = QColor.fromHsvF(hue_ratio, 1., .8)
+                painter.setBrush(QBrush(color, Qt.SolidPattern))
+            
             polygon: b2PolygonShape = fixture.shape
             local_points: List[b2Vec2] = polygon.vertices
-            # poly = []
+
             if local:
                 world_coords = local_points
             else:
@@ -83,191 +82,17 @@ def draw_polygon(painter: QPainter, body: b2Body, poly_type: str = '', adjust_pa
     
 
 def _set_painter_solid(painter: QPainter, color: Qt.GlobalColor, with_antialiasing: bool = True):
+    _set_painter(painter, color, True, with_antialiasing)
+
+def _set_painter_clear(painter: QPainter, color: Qt.GlobalColor, with_antialiasing: bool = True):
+    _set_painter(painter, color, False, with_antialiasing)
+
+def _set_painter(painter: QPainter, color: Qt.GlobalColor, fill: bool, with_antialiasing: bool = True):
     painter.setPen(QPen(color, 1./scale, Qt.SolidLine))
-    painter.setBrush(QBrush(color, Qt.SolidPattern))
+    pattern = Qt.SolidPattern if fill else Qt.NoBrush
+    painter.setBrush(QBrush(color, pattern))
     if with_antialiasing:
         painter.setRenderHint(QPainter.Antialiasing)
-
-
-class ColorGradient(QWidget):
-    def __init__(self, parent, size):
-        super().__init__(parent)
-        self. size = size
-
-    
-
-
-class StatsWindow(QWidget):
-    def __init__(self, parent, size):
-        super().__init__(parent)
-        self.size = size
-
-        font = QtGui.QFont('Times', 11, QtGui.QFont.Normal)
-        font_bold = QtGui.QFont('Times', 11, QtGui.QFont.Bold)
-
-        # Create a grid layout to keep track of certain stats
-        self.grid = QtWidgets.QGridLayout()
-        self.grid.setContentsMargins(0, 0, 0, 0)
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        draw_border(painter, self.size)
-
-
-class BestCarWindow(QWidget):
-    def __init__(self, parent, size):
-        super().__init__(parent)
-        self.size = size
-        global g_best_car
-        # self.best_car = None
-        # Create a timer to run given the desired FPS
-        self._timer = QTimer()
-        self._timer.timeout.connect(self.update)
-        self._timer.start(1000//FPS)
-        
-
-    def paintEvent(self, event):
-        global g_best_car
-        painter = QPainter(self)
-        draw_border(painter, self.size)
-        painter.translate(150, 110)
-        painter.scale(50, -50)
-        if g_best_car:
-            for wheel in g_best_car.wheels:
-                draw_circle(painter, wheel.body, local=False)
-
-            draw_polygon(painter, g_best_car.chassis, local=False)
-        else:
-            pass
-
-
-
-class GeneticAlgorithmWindow(QWidget):
-    def __init__(self, parent, size):
-        super().__init__(parent)
-        self.size = size
-        self.ga_settings = None
-        self._ga_stats_edits = {}
-
-        self.init_window()
-
-    def _create_ga_row_edit(self, entry: str, text: str, is_range: bool = False) -> None:
-        label = QLabel()
-        label.setText(text)
-        edit = QLineEdit()
-        if entry not in boxcar_constant and not is_range:
-            raise Exception('If entry is not a range, it must be named the same as defined in boxcar_constant')
-        elif entry in self._ga_stats_edits:
-            raise Exception('Entry already exists')
-        else:
-            value = None
-            if is_range:
-                # Find '_range' and set idx
-                name = entry[:entry.index('_range')]
-                # Find the 'min_name' and 'max_name' from the constants
-                min_name = 'min_' + name
-                max_name = 'max_' + name
-                if min_name not in boxcar_constant:
-                    raise Exception('{} must be defined in boxcar_constant'.format(min_name))
-                if max_name not in boxcar_constant:
-                    raise Exception('{} must be defined in boxcar_constant'.format(max_name))
-                # Format value
-                value = '{}, {}'.format(get_boxcar_constant(min_name),
-                                        get_boxcar_constant(max_name))
-            else:
-                value = str(get_boxcar_constant(entry))
-
-            edit.setText(value)
-            self._ga_stats_edits[entry] = edit
-            self.ga_settings.addRow(label, self._ga_stats_edits[entry])
-
-    def init_window(self):
-        # self.scroll_area = QScrollArea(self)
-        self.ga_settings = QFormLayout()
-        blank_label = QLabel().setText('')
-        ### Car Specific Edits ###
-        car_specific_label = QLabel()
-        car_specific_label.setText('Car Specific Edits:')
-        self.ga_settings.addRow(car_specific_label, blank_label)
-        # Number of wheels range
-        self._create_ga_row_edit('num_wheels_range', 'Num Wheels (Range):', is_range=True)    
-        # Wheel radius range
-        self._create_ga_row_edit('wheel_radius_range', 'Wheel Radius (Range):', is_range=True)
-        # Wheel density range
-        self._create_ga_row_edit('wheel_density_range', 'Wheel Density (Range):', is_range=True)
-        # Chassis axis range
-        self._create_ga_row_edit('chassis_axis_range', 'Chassis Axis (Range):', is_range=True)
-        # Max tries
-        self._create_ga_row_edit('car_max_tries', 'Max Tries (int):')
-        ### Floor Specific Edits ###
-        floor_specific_label = QLabel()
-        floor_specific_label.setText('Floor Specific Edits:')
-        self.ga_settings.addRow(floor_specific_label, blank_label)
-        # Floor tile height
-        self._create_ga_row_edit('floor_tile_height', 'Tile Height (float):')
-        # Floor tile width
-        self._create_ga_row_edit('floor_tile_width', 'Tile Width (float):')
-        # Floor type
-        self._create_ga_row_edit('floor_creation_type', 'Floor type (str):')
-        # Max floor tiles
-        self._create_ga_row_edit('max_floor_tiles', 'Max Tiles (int):')
-        ### Floor - Gaussian ###
-        floor_gaussian_specific_label = QLabel()
-        floor_gaussian_specific_label.setText("Gaussian Specific\n( Floor type = 'gaussian' )")
-        self.ga_settings.addRow(floor_gaussian_specific_label, blank_label)
-        # mu tile angle
-        self._create_ga_row_edit('tile_angle_mu', 'Mean Tile Angle:')
-        # std tile angle
-        self._create_ga_row_edit('tile_angle_std', 'Std Tile Angle:')
-        ### Floor - Ramp ###
-        floor_ramp_specific_label = QLabel()
-        floor_ramp_specific_label.setText("Ramp Specific\n( Floor type = 'ramp' )")
-        self.ga_settings.addRow(floor_ramp_specific_label, blank_label)
-        # Ramp constant angle
-        self._create_ga_row_edit('ramp_constant_angle', 'Ramp Constant Angle:')
-        # Ramp constant distance
-        self._create_ga_row_edit('ramp_constant_distance', 'Ramp Constant Distance:')
-        # Ramp increasing angle
-        self._create_ga_row_edit('ramp_increasing_angle', 'Ramp Increasing Angle:')
-        # Ramp start angle
-        self._create_ga_row_edit('ramp_start_angle', 'Ramp Start Angle:')
-        # Ramp increasing type
-        self._create_ga_row_edit('ramp_increasing_type', 'Ramp Increasing Type:')
-        # Ramp max angle
-        self._create_ga_row_edit('ramp_max_angle', 'Ramp Max Angle:')
-        # Ramp approach distance
-        self._create_ga_row_edit('ramp_approach_distance', 'Ramp Approach Distance:')
-        # Ramp distance to jump
-        self._create_ga_row_edit('ramp_distance_needed_to_jump', 'Distance to Jump:')
-        # Jagged increasing angle
-        self._create_ga_row_edit('jagged_increasing_angle', 'Jagged Increasing Angle:')
-        # Jagged decreasing angle
-        self._create_ga_row_edit('jagged_decreasing_angle', 'Jagged Decreasing Angle:')
-        
-
-        ga_widget = QWidget()
-        ga_widget.setLayout(self.ga_settings)
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidget(ga_widget)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.scroll_area.setWidgetResizable(True)
-        
-        button_widget = QWidget()
-        hlayout = QHBoxLayout()
-        hlayout.addWidget(QPushButton('Apply'))
-        hlayout.addWidget(QPushButton('Reset'))
-        button_widget.setLayout(hlayout)
-
-        self.vbox = QVBoxLayout()
-        self.vbox.addWidget(self.scroll_area)
-        self.vbox.addWidget(button_widget)
-
-        self.setLayout(self.vbox)
-    
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        draw_border(painter, self.size)
 
 
 class GameWindow(QWidget):
@@ -352,10 +177,6 @@ class GameWindow(QWidget):
                 draw_polygon(painter, tile)
 
     def paintEvent(self, event):
-        # tile = create_floor_tile(self.world, b2Vec2(50,50), 0)
-        # vertices = tile.fixtures[0].shape.vertices
-        # qpoints = [QPointF(vert[0], vert[1]) for vert in vertices]
-
         painter = QPainter(self)
         draw_border(painter, self.size)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -420,7 +241,7 @@ class MainWindow(QMainWindow):
     def __init__(self, world):
         super().__init__()
         self.world = world
-        self.title = 'Test'
+        self.title = 'Genetic Algorithm - Cars'
         self.top = 150
         self.left = 150
         self.width = 1100
@@ -442,9 +263,9 @@ class MainWindow(QMainWindow):
         self.setGeometry(self.top, self.left, self.width, self.height)
 
         # Create the best_car_window
-        self.best_car_window = BestCarWindow(self.centralWidget, (300, 200))
-        self.best_car_window.setGeometry(QRect(800, 500, 300, 200))
-        self.best_car_window.setObjectName('best_car_window')
+        # self.best_car_window = BestCarWindow(self.centralWidget, (300, 200))
+        # self.best_car_window.setGeometry(QRect(800, 500, 300, 200))
+        # self.best_car_window.setObjectName('best_car_window')
 
         # Create stats_window
         self.stats_window = StatsWindow(self.centralWidget, (800, 200))
@@ -459,8 +280,8 @@ class MainWindow(QMainWindow):
         # self.ga_window.setGeometry(QRect(800, 0, 300, 500))
         # self.ga_window.setObjectName('ga_window')
 
-        self.settings_window = SettingsWindow(self.centralWidget, (300, 500))
-        self.settings_window.setGeometry(QRect(800, 0, 300, 500))
+        self.settings_window = SettingsWindow(self.centralWidget, (300, 700))
+        self.settings_window.setGeometry(QRect(800, 0, 300, 700))
         self.settings_window.setObjectName('settings_window')
         
 

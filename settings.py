@@ -4,14 +4,14 @@ from typing import Any, Tuple
 settings = {}
 settings['boxcar'] = {}
 settings['ga'] = {}
-
+__settings_cache = {} 
 # The settings specific to the boxcar
 settings['boxcar'] = {
     ### Floor ###
     'floor_tile_height': (.15, float),
     'floor_tile_width': (1.5, float),
-    'max_floor_tiles': (15, int),
-    'floor_creation_type': ('ramp', str),
+    'max_floor_tiles': (150, int),
+    'floor_creation_type': ('gaussian', str),
         ### Floor - Gaussian random. Used when 'floor_creation_type' == 'gaussian' ###
         # Only needed if using gaussian random floor creation
         'tile_angle_mu': (8, float),
@@ -65,7 +65,7 @@ settings['boxcar'] = {
 
 ## Genetic algorithm specific settings
 settings['ga'] = {
-    'num_parents': (1, int)
+    'num_parents': (20, int)
 }
 
 def _verify_constants() -> None:
@@ -87,6 +87,11 @@ def _get_constant(constant: str, controller: str) -> Any:
     """
     Get the end value represented by the constant you are searching for
     """
+    # Caches are good. Normally making a cache for a dictionary doesn't make sense.
+    # Since I allow dependencies on other variables, a lookup could be O(N). By adding
+    # a cache where (constant, controller) is the key, we get O(1) lookup time again.
+    if (constant, controller) in __settings_cache:
+        return __settings_cache[(constant, controller)]
     if controller not in settings:
         raise Exception('Unable to find a setting for {}'.format(controller))
     
@@ -112,6 +117,8 @@ def _get_constant(constant: str, controller: str) -> Any:
     elif value and requested_type is float:
         value = float(value)
     
+    # Set cache if we made it this far
+    __settings_cache[(constant, controller)] = value
     return value
 
 def get_boxcar_constant(constant: str) -> Any:

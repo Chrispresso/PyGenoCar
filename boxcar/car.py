@@ -2,7 +2,7 @@ from Box2D import *
 from typing import List
 from numpy import random
 import random as rand
-from .utils import get_boxcar_constant
+from settings import get_boxcar_constant
 from .wheel import *
 from typing import List
 import math

@@ -1,7 +1,7 @@
 from Box2D import *
 from .base import BoxCarObject
 from typing import List
-from .utils import get_boxcar_constant
+from settings import get_boxcar_constant
 import math
 import numpy as np
 

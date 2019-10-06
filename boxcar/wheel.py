@@ -1,6 +1,5 @@
 from Box2D import *
-from .utils import get_boxcar_constant
-
+from settings import get_boxcar_constant
 
 class Wheel(object):
     def __init__(self, world: b2World, radius: float, density: float, restitution: float):
