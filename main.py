@@ -3,9 +3,16 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QScrollArea, QPu
 from PyQt5.QtGui import QPainter, QBrush, QPen, QPolygonF, QColor
 from PyQt5.QtCore import Qt, QPointF, QTimer, QRect
 from typing import Optional, Tuple
-from boxcar.floor import *
-from boxcar.car import *
-from settings import *
+from Box2D import *
+import random
+from boxcar.floor import Floor
+from boxcar.car import Car, create_random_car, clip_chromosome, clip_chromosome_to_zero, set_chromosome_bounding_vertices_to_zero
+from genetic_algorithm.population import Population
+from genetic_algorithm.crossover import simulated_binary_crossover as SBX
+from genetic_algorithm.crossover import single_point_binary_crossover as SPBX
+from genetic_algorithm.mutation import gaussian_mutation
+from genetic_algorithm.selection import elitism_selection, roulette_wheel_selection
+from settings import get_boxcar_constant, get_ga_constant
 from windows import SettingsWindow, StatsWindow, draw_border
 
 import sys
@@ -96,7 +103,8 @@ def _set_painter(painter: QPainter, color: Qt.GlobalColor, fill: bool, with_anti
 
 
 class GameWindow(QWidget):
-    def __init__(self, parent, size, world, floor, cars, leader):
+    def __init__(self, parent, size, world, 
+    , cars, leader):
         super().__init__(parent)
         self.size = size
         self.world = world
@@ -254,8 +262,26 @@ class MainWindow(QMainWindow):
         self.leader = None  # What car is leading
         self.num_cars_alive = get_ga_constant('num_parents')
         self._current_individual = 0
+        
+        # Determine how large the next generation is
+        if get_ga_constant('selection_type').lower() == 'plus':
+            self._next_gen_size = get_ga_constant('num_parents') + get_ga_constant('num_offspring')
+        elif get_ga_constant('selection_type').lower() == 'comma':
+            self._next_gen_size = get_ga_constant('num_parents')
+        else:
+            raise Exception('Selection type "{}" is invalid'.format(get_ga_constant('selection_type')))
 
         self._set_first_gen()
+        self.population = Population(self.cars)
+        # For now this is all I'm supporting, may change in the future. There really isn't a reason to use
+        # uniform or single point here because all the values have different ranges, and if you clip them, it
+        # can make those crossovers useless. Instead just use simulated binary crossover to ensure better crossover.
+        self._crossover_bins = np.cumsum([get_ga_constant('probability_SBX')])
+
+        self._mutation_bins = np.cumsum([get_ga_constant('probability_gaussian'),
+                                         get_ga_constant('probability_random_uniform')])
+
+
 
         self.init_window()
         self.game_window.cars = self.cars
@@ -267,6 +293,75 @@ class MainWindow(QMainWindow):
 
     def next_generation(self) -> None:
         self._increment_generation()
+        self._current_individual = 0  # Reset back to the first individual
+
+        # Calculate fit
+        for individual in self.population.individuals:
+            individual.calculate_fitness()
+
+        self.population.individuals = elitism_selection(self.population, get_ga_constant('num_parents'))
+
+        random.shuffle(self.population.individuals)
+        next_pop: List[Car] = []
+
+        # Parents + offspring selection type ('plus')
+        if get_ga_constant('selection_type').lower() == 'plus':
+            # Decrement lifespan
+            for individual in self.population.individuals:
+                individual.lifespan -= 1
+
+            for individual in self.population.individuals:
+                world = self.world
+                wheel_radii = individual.wheel_radii
+                wheel_densities = individual.wheel_densities
+                chassis_vertices = individual.chassis_vertices
+                chassis_densities = individual.chassis_densities
+                winning_tile = individual.winning_tile
+                lowest_y_pos = individual.lowest_y_pos
+                lifespan = individual.lifespan
+
+                # If the individual is still alive, they survive
+                if lifespan > 0:
+                    car = Car(world, 
+                              wheel_radii, wheel_densities,         # Wheel
+                              chassis_vertices, chassis_densities,  # Chassis
+                              winning_tile, lowest_y_pos,
+                              lifespan)
+                    next_pop.append(car)
+
+        # Keep adding children until we reach the size we need
+        while len(next_pop) < self._next_gen_size:
+            p1, p2 = roulette_wheel_selection(self.population, 2)
+
+            # Crossover
+            c1_chromosome, c2_chromosome = self._crossover(p1, p2)
+
+            # Mutation
+            self._mutation(c1_chromosome)
+            self._mutation(c2_chromosome)
+
+            # Should we clip the chromosome values?
+            # @NOTE: Each gene has a very different range of potential values
+            if get_ga_constant('should_clip'):
+                if get_ga_constant('clip_type').lower() == 'bounds':
+                    clip_chromosome(c1_chromosome)
+                    clip_chromosome(c2_chromosome)
+
+                elif get_ga_constant('clip_type').lower() == 'zero':
+                    clip_chromosome_to_zero(c1_chromosome)
+                    clip_chromosome_to_zero(c2_chromosome)
+
+            # Create children from the new chromosomes
+            c1 = Car.create_car_from_chromosome(p1.world, p1.winning_tile, p1.lowest_y_pos, c1_chromosome)
+            c2 = Car.create_car_from_chromosome(p2.world, p2.winning_tile, p2.lowest_y_pos, c2_chromosome)
+
+            # Add children to the next generation
+            next_pop.extend([c1, c2])
+
+        # Set the next pop
+        random.shuffle(next_pop)
+        self.population.individuals = next_pop
+
 
 
 
@@ -318,9 +413,6 @@ class MainWindow(QMainWindow):
                 max_x = car_pos
 
         return leader
-
-    def next_generation(self) -> None:
-        pass
     
     def _increment_generation(self) -> None:
         self.current_generation += 1
@@ -388,6 +480,33 @@ class MainWindow(QMainWindow):
 
         return True
 
+    def _crossover(self, p1_chromosome: np.ndarray, p2_chromosome: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        rand_crossover = random.random()
+        crossover_bucket = np.digitize(rand_crossover, self._crossover_bins)
+
+        # SBX
+        if crossover_bucket == 0:
+            c1_chromosome, c2_chromosome = SBX(p1_chromosome, p2_chromosome, get_ga_constant('SBX_eta'))
+        else:
+            raise Exception('Unable to determine valid crossover based off probabilities')
+
+        return c1_chromosome, c2_chromosome
+
+    def _mutation(self, chromosome: np.ndarray) -> None:
+        rand_mutation = random.random()
+        mutation_bucket = np.digitize(rand_mutation, self._mutation_bins)
+
+        # Gaussian
+        if mutation_bucket == 0:
+            gaussian_mutation(chromosome, get_ga_constant('mutation_rate'), scale=get_ga_constant('gaussian_mutation_scale'))
+
+
+        # Random uniform
+        elif mutation_bucket == 1:
+            #@TODO: add to this
+            pass
+        else:
+            raise Exception('Unable to determine valid mutation based off probabilities')
 
 if __name__ == "__main__":
     world = b2World(get_boxcar_constant('gravity'))

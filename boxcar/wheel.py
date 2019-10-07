@@ -2,7 +2,7 @@ from Box2D import *
 from settings import get_boxcar_constant
 
 class Wheel(object):
-    def __init__(self, world: b2World, radius: float, density: float, restitution: float):
+    def __init__(self, world: b2World, radius: float, density: float, restitution: float = 0.2):
         self.radius = radius
         self.density = density
         self.restitution = restitution
@@ -44,3 +44,7 @@ class Wheel(object):
     @torque.setter
     def torque(self, value):
         self._torque = value
+
+def clone(self) -> 'Wheel':
+    clone = Wheel(self.world, self.radius, self.density, self.restitution)
+    return clone

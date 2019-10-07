@@ -70,7 +70,25 @@ settings['boxcar'] = {
 
 ## Genetic algorithm specific settings
 settings['ga'] = {
-    'num_parents': (2, int)
+    # Selection
+    'num_parents': (12, int),
+    'num_offspring': (2, int),
+    'selection_type': ('plus', str),
+
+    # Mutation
+    'probability_gaussian': (1.00, float),
+    'gaussian_mutation_scale': (0.2, float),
+    'probability_random_uniform': (0.00, float),
+    'mutation_rate': (0.05, float),
+    'mutation_rate_type': ('static', str),
+
+    # Crossover
+    'probability_SBX': (1.00, float),
+    'SBX_eta': (5, float),
+
+    # Misc.
+    'should_clip': (bool, True),
+    'clip_type': ('bounds', str)
 }
 
 def _verify_constants() -> None:
