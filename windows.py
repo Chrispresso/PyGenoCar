@@ -159,14 +159,28 @@ class DensityWindow(QWidget):
             self._add_bc_row_entry('tile_angle_mu', 'Tile Angle (mu):', font_bold, normal_font)
             self._add_bc_row_entry('tile_angle_std', 'Tile Andle (std):', font_bold, normal_font)
             self._add_bc_row_entry('tile_gaussian_denominator', 'Angle Normalizer:', font_bold, normal_font)
-            self._add_bc_row_entry('tile_gaussian_threshold', 'Max Gaussian Numerator:', font_bold, normal_font)
+            self._add_bc_row_entry('tile_gaussian_threshold', 'Max Numerator:', font_bold, normal_font)
         # Jagged specific stuff
         elif get_boxcar_constant('floor_creation_type') == 'jagged':
             angle_range = '-{:.2f}, {:.2f}'.format(
                 get_boxcar_constant('jagged_increasing_angle'),
                 get_boxcar_constant('jagged_decreasing_angle')
             )
-            self._add_bc_row_entry(None, 'Jagged Anlge:', font_bold, normal_font, force_value=angle_range)
+            self._add_bc_row_entry(None, 'Jagged Angle:', font_bold, normal_font, force_value=angle_range)
+        self._add_bc_row_entry('car_max_tries', 'Car Max Tries:', font_bold, normal_font)
+        # Chassis Axis
+        chassis_axis_range = '[{:.2f}, {:.2f})'.format(
+            get_boxcar_constant('min_chassis_axis'),
+            get_boxcar_constant('max_chassis_axis')
+        )
+        self._add_bc_row_entry(None, 'Chassis Axis:', font_bold, normal_font, force_value=chassis_axis_range)
+        # Chassis Density
+        chassis_density_range = '[{:.2f}, {:.2f})'.format(
+            get_boxcar_constant('min_chassis_density'),
+            get_boxcar_constant('max_chassis_density')
+        )
+        self._add_bc_row_entry(None, 'Chassis Density:', font_bold, normal_font, force_value=chassis_density_range)
+
         widget = QWidget()
         widget.setLayout(self.boxcar_form)
         self.scroll_area = QScrollArea()

@@ -2,6 +2,7 @@ from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QScrollArea, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QFormLayout
 from PyQt5.QtGui import QPainter, QBrush, QPen, QPolygonF, QColor
 from PyQt5.QtCore import Qt, QPointF, QTimer, QRect
+from typing import Optional, Tuple
 from boxcar.floor import *
 from boxcar.car import *
 from settings import *
@@ -9,7 +10,6 @@ from windows import SettingsWindow, StatsWindow, draw_border
 
 import sys
 import time
-from typing import Tuple
 from copy import deepcopy
 
 g_best_car = None
@@ -96,7 +96,7 @@ def _set_painter(painter: QPainter, color: Qt.GlobalColor, fill: bool, with_anti
 
 
 class GameWindow(QWidget):
-    def __init__(self, parent, size, world):
+    def __init__(self, parent, size, world, floor, cars, leader):
         super().__init__(parent)
         self.size = size
         self.world = world
@@ -105,52 +105,55 @@ class GameWindow(QWidget):
         self.left = 150
         self.width = 1100
         self.height = 700
-        self.floor = Floor(self.world)
-        self.chassis = create_random_chassis(self.world)
-        self.leader: Car = None  # Track the leader
+        self.floor = floor
+        # self.chassis = create_random_chassis(self.world)
+        self.leader: Car = leader  # Track the leader
         self.best_car_ever = None
-        self.cars = None
-        self.new_generation()
+        self.cars = cars
+        # self.new_generation()
 
         # Camera stuff
         self._camera = b2Vec2()
         self._camera_speed = 0.05
         self._camera.x
 
-        # Create a timer to run given the desired FPS
+    def pan_camera_to_leader(self) -> None:
+        diff_x = self._camera.x - self.leader.chassis.position.x
+        diff_y = self._camera.y - self.leader.chassis.position.y
+        self._camera.x -= self._camera_speed * diff_x 
+        self._camera.y -= self._camera_speed * diff_y
 
     def _update(self):
         """
         Main update method used. Called once every (1/FPS) second.
         """
+        # for car in self.cars:
+        #     if not car.is_alive:
+        #         continue
 
-        for car in self.cars:
-            if not car.is_alive:
-                continue
-
-            if not car.update():
-                if car == self.leader:
-                    self.find_new_leader()
-            else:
-                car_pos = car.position.x
-                if car_pos > self.leader.position.x:
-                    self.leader = car
+        #     if not car.update():
+        #         if car == self.leader:
+        #             self.find_new_leader()
+        #     else:
+        #         car_pos = car.position.x
+        #         if car_pos > self.leader.position.x:
+        #             self.leader = car
 
 
-        # Did all the cars die?
-        if not self.leader:
-            print('new generation')
-            self.new_generation()
-        else:
-            diff_x = self._camera.x - self.leader.chassis.position.x
-            diff_y = self._camera.y - self.leader.chassis.position.y
-            self._camera.x -= self._camera_speed * diff_x #diff_x # self._camera_speed * diff_x
-            self._camera.y -= self._camera_speed * diff_y #diff_y # self._camera_speed * diff_y
+        # # Did all the cars die?
+        # if not self.leader:
+        #     print('new generation')
+        #     # self.new_generation()
+        # else:
+        #     diff_x = self._camera.x - self.leader.chassis.position.x
+        #     diff_y = self._camera.y - self.leader.chassis.position.y
+        #     self._camera.x -= self._camera_speed * diff_x #diff_x # self._camera_speed * diff_x
+        #     self._camera.y -= self._camera_speed * diff_y #diff_y # self._camera_speed * diff_y
         
-        self.world.ClearForces()
         self.update()
 
-        self.world.Step(1./FPS, 10, 6)
+    
+
 
     def _draw_car(self, painter: QPainter, car: Car):
         """
@@ -246,15 +249,26 @@ class MainWindow(QMainWindow):
         self.left = 150
         self.width = 1100
         self.height = 700
+        
+        self.current_generation = 0
+        self.leader = None  # What car is leading
+        self.num_cars_alive = get_ga_constant('num_parents')
+        self._current_individual = 0
+
+        self._set_first_gen()
 
         self.init_window()
+        self.game_window.cars = self.cars
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._update)
         self._timer.start(1000//FPS)
 
-    def _update(self) -> None:
-        # Update windows
-        self.game_window._update()
+    
+
+    def next_generation(self) -> None:
+        self._increment_generation()
+
+
 
     def init_window(self):
         self.centralWidget = QWidget(self)
@@ -272,23 +286,16 @@ class MainWindow(QMainWindow):
         self.stats_window.setGeometry(QRect(0, 500, 800, 200))
         self.stats_window.setObjectName('stats_window')
 
-        self.game_window = GameWindow(self.centralWidget, (800, 500), self.world)
+        # Create game_window - where the game is played
+        self.game_window = GameWindow(self.centralWidget, (800, 500), self.world, self.floor, self.cars, self.leader)
         self.game_window.setGeometry(QRect(0, 0, 800, 500))
         self.game_window.setObjectName('game_window')
 
-        # self.ga_window = GeneticAlgorithmWindow(self.centralWidget, (300, 500))
-        # self.ga_window.setGeometry(QRect(800, 0, 300, 500))
-        # self.ga_window.setObjectName('ga_window')
-
+        # Create settings_window - just a bunch of settings of the game and how they were defined, etc.
         self.settings_window = SettingsWindow(self.centralWidget, (300, 700))
         self.settings_window.setGeometry(QRect(800, 0, 300, 700))
         self.settings_window.setObjectName('settings_window')
         
-
-        # Add stats window
-        self.stats_window = QWidget(self)
-        self.stats_window.setGeometry(QRect(0, 500, 1000, 200))
-        self.stats_window.setObjectName('stats_window')
 
         # Add main window
         self.main_window = QWidget(self)
@@ -296,6 +303,91 @@ class MainWindow(QMainWindow):
         self.main_window.setObjectName('main_window')
 
         self.show()
+
+    def find_new_leader(self) -> Optional[Car]:
+        max_x = -1
+        leader = None
+        for car in self.cars:
+            # Can't be a leader if you're dead
+            if not car.is_alive:
+                continue
+
+            car_pos = car.position.x
+            if car_pos > max_x:
+                leader = car
+                max_x = car_pos
+
+        return leader
+
+    def next_generation(self) -> None:
+        pass
+    
+    def _increment_generation(self) -> None:
+        self.current_generation += 1
+        self.stats_window.generation.setText("<font color='red'>" + str(self.current_generation + 1) + '</font>')
+
+    def _set_first_gen(self) -> None:
+        # Create the floor
+        self.floor = Floor(self.world)
+
+        # Initialize cars randomly
+        self.cars = []
+        for i in range(get_ga_constant('num_parents')):
+            car = create_random_car(self.world, self.floor.winning_tile, self.floor.lowest_y)
+            self.cars.append(car)
+
+        leader = self.find_new_leader()
+        self.leader = leader
+
+    def _set_number_of_cars_alive(self) -> None:
+        self.stats_window.current_num_alive.setText(str(self.num_cars_alive))
+
+
+    def _update(self) -> None:
+        for car in self.cars:
+            if not car.is_alive:
+                continue
+            if not car.update():
+                # Decrement the number of cars alive
+                self.num_cars_alive -= 1
+                self._set_number_of_cars_alive()
+
+                # If the car that just died/won was the leader, we need to find a new one
+                if car == self.leader:
+                    leader = self.find_new_leader()
+                    self.leader = leader
+                    self.game_window.leader = leader
+            else:
+                car_pos = car.position.x
+                if car_pos > self.leader.position.x:
+                    self.leader = car
+                    self.game_window.leader = car
+        # If the leader is valid, then just pan to the leader
+        if self.leader:
+            self.game_window.pan_camera_to_leader()
+        # If the leader is None, then that means no new leader was found because everyone is dead.
+        # Need a new generation then
+        else:
+            print('new gen needed')
+
+        self.world.ClearForces()
+
+        # Update windows
+        self.game_window._update()
+        # if self._are_all_cars_dead():
+        #     print('eeeeeeeeeek')
+
+        # Step
+        self.world.Step(1./FPS, 10, 6)
+
+
+    def _are_all_cars_dead(self) -> bool:
+        for car in self.cars:
+            if car.is_alive:
+                return False
+
+        return True
+
 
 if __name__ == "__main__":
     world = b2World(get_boxcar_constant('gravity'))

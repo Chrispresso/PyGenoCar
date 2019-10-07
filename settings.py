@@ -60,12 +60,17 @@ settings['boxcar'] = {
     'gravity': ((0, -9.8), tuple),  # X/Y direction
 
     # Genetic Algorithm
-    'num_cars_in_generation': (1, int)
+    'num_cars_in_generation': (20, int),
+
+    # Display
+    'show': (True, bool), # Whether or not to display anything
+    'fps': (60.0, float),
+    'display_at_a_time': (20, int)
 }
 
 ## Genetic algorithm specific settings
 settings['ga'] = {
-    'num_parents': (20, int)
+    'num_parents': (2, int)
 }
 
 def _verify_constants() -> None:
