@@ -52,7 +52,7 @@ settings['boxcar'] = {
     'min_wheel_density': (40.0, float),
     'max_wheel_density': (200.0, float),
     'min_num_wheels': (0, int),
-    'max_num_wheels': (8, int),
+    'max_num_wheels': (0, int),
     'min_wheel_radius': (0.1, float),
     'max_wheel_radius': (0.5, float),
 
@@ -71,8 +71,8 @@ settings['boxcar'] = {
 ## Genetic algorithm specific settings
 settings['ga'] = {
     # Selection
-    'num_parents': (12, int),
-    'num_offspring': (2, int),
+    'num_parents': (10, int),
+    'num_offspring': (10, int),
     'selection_type': ('plus', str),
 
     # Mutation
@@ -84,10 +84,10 @@ settings['ga'] = {
 
     # Crossover
     'probability_SBX': (1.00, float),
-    'SBX_eta': (5, float),
+    'SBX_eta': (1, float),
 
     # Misc.
-    'should_clip': (bool, True),
+    'should_clip': (False, bool),
     'clip_type': ('bounds', str)
 }
 

@@ -11,13 +11,15 @@ from genetic_algorithm.population import Population
 from genetic_algorithm.crossover import simulated_binary_crossover as SBX
 from genetic_algorithm.crossover import single_point_binary_crossover as SPBX
 from genetic_algorithm.mutation import gaussian_mutation
-from genetic_algorithm.selection import elitism_selection, roulette_wheel_selection
+from genetic_algorithm.selection import elitism_selection, roulette_wheel_selection, tournament_selection
 from settings import get_boxcar_constant, get_ga_constant
 from windows import SettingsWindow, StatsWindow, draw_border
 
 import sys
 import time
 from copy import deepcopy
+import numpy as np
+import math
 
 g_best_car = None
 
@@ -32,6 +34,7 @@ def draw_circle(painter: QPainter, body: b2Body, local=False) -> None:
             # Set the color of the circle to be based off wheel density
             adjust = get_boxcar_constant('max_wheel_density') - get_boxcar_constant('min_wheel_density')
             hue_ratio = (fixture.density - get_boxcar_constant('min_wheel_density')) / adjust
+            hue_ratio = min(max(hue_ratio, 0.0), 1.0)  # Just in case you leave the GA unbounded...
             color = QColor.fromHsvF(hue_ratio, 1., .8)
             painter.setBrush(QBrush(color, Qt.SolidPattern))
 
@@ -62,7 +65,11 @@ def draw_polygon(painter: QPainter, body: b2Body, poly_type: str = '', adjust_pa
             if poly_type == 'chassis':
                 adjust = get_boxcar_constant('max_chassis_density') - get_boxcar_constant('min_chassis_density')
                 hue_ratio = (fixture.density - get_boxcar_constant('min_chassis_density')) / adjust
-                color = QColor.fromHsvF(hue_ratio, 1., .8)
+                hue_ratio = min(max(hue_ratio, 0.0), 1.0)  # Just in case you leave the GA unbounded...
+                try:
+                    color = QColor.fromHsvF(hue_ratio, 1., .8)
+                except:
+                    print(hue_ratio)
                 painter.setBrush(QBrush(color, Qt.SolidPattern))
             
             polygon: b2PolygonShape = fixture.shape
@@ -103,8 +110,7 @@ def _set_painter(painter: QPainter, color: Qt.GlobalColor, fill: bool, with_anti
 
 
 class GameWindow(QWidget):
-    def __init__(self, parent, size, world, 
-    , cars, leader):
+    def __init__(self, parent, size, world, floor, cars, leader):
         super().__init__(parent)
         self.size = size
         self.world = world
@@ -114,11 +120,9 @@ class GameWindow(QWidget):
         self.width = 1100
         self.height = 700
         self.floor = floor
-        # self.chassis = create_random_chassis(self.world)
         self.leader: Car = leader  # Track the leader
         self.best_car_ever = None
         self.cars = cars
-        # self.new_generation()
 
         # Camera stuff
         self._camera = b2Vec2()
@@ -135,29 +139,6 @@ class GameWindow(QWidget):
         """
         Main update method used. Called once every (1/FPS) second.
         """
-        # for car in self.cars:
-        #     if not car.is_alive:
-        #         continue
-
-        #     if not car.update():
-        #         if car == self.leader:
-        #             self.find_new_leader()
-        #     else:
-        #         car_pos = car.position.x
-        #         if car_pos > self.leader.position.x:
-        #             self.leader = car
-
-
-        # # Did all the cars die?
-        # if not self.leader:
-        #     print('new generation')
-        #     # self.new_generation()
-        # else:
-        #     diff_x = self._camera.x - self.leader.chassis.position.x
-        #     diff_y = self._camera.y - self.leader.chassis.position.y
-        #     self._camera.x -= self._camera_speed * diff_x #diff_x # self._camera_speed * diff_x
-        #     self._camera.y -= self._camera_speed * diff_y #diff_y # self._camera_speed * diff_y
-        
         self.update()
 
     
@@ -206,47 +187,6 @@ class GameWindow(QWidget):
             self._draw_car(painter, car)
         # for fixture in self.chassis.fixtures:
         #     print([self.chassis.GetWorldPoint(vert) for vert in fixture.shape.vertices])
-
-    def new_generation(self):
-        global g_best_car
-        if self.cars:
-            best_car = None
-            # If we have not found a best car yet, compare just the current generation
-            if not g_best_car:
-                best_pos = -1
-                for car in self.cars:
-                    if car.max_position > best_pos:
-                        best_car = car
-                        best_pos = car.max_position
-            else:
-                best_car = g_best_car
-                for car in self.cars:
-                    if car.max_position > best_car.max_position:
-                        best_car = car
-
-            if best_car != g_best_car:
-                g_best_car = best_car.clone()
-
-        print(g_best_car)
-
-        self.cars = [create_random_car(self.world, self.floor.winning_tile, self.floor.lowest_y) for _ in range(get_boxcar_constant('num_cars_in_generation'))]
-        g_best_car = self.cars[0].clone()
-        self.find_new_leader()
-
-    def find_new_leader(self):
-        max_x = -1
-        leader: Car = None
-        for car in self.cars:
-            # Can't be a leader if you're dead
-            if not car.is_alive:
-                continue
-
-            car_pos = car.position.x
-            if car_pos > max_x:
-                leader = car
-                max_x = car_pos
-
-        self.leader = leader
 
 class MainWindow(QMainWindow):
     def __init__(self, world):
@@ -331,10 +271,15 @@ class MainWindow(QMainWindow):
 
         # Keep adding children until we reach the size we need
         while len(next_pop) < self._next_gen_size:
-            p1, p2 = roulette_wheel_selection(self.population, 2)
+            # r1 = random.randint(0, len(self.population.individuals)-1)
+            # r2 = random.randint(0, len(self.population.individuals)-1)
+            # while r2 == r1:
+            #     r2 = random.randint(0, len(self.population) - 1)
+            # p1, p2 = self.population.individuals[r1], self.population.individuals[r2]
+            p1, p2 = tournament_selection(self.population, 2, 5)
 
             # Crossover
-            c1_chromosome, c2_chromosome = self._crossover(p1, p2)
+            c1_chromosome, c2_chromosome = self._crossover(p1.chromosome, p2.chromosome)
 
             # Mutation
             self._mutation(c1_chromosome)
@@ -350,6 +295,9 @@ class MainWindow(QMainWindow):
                 elif get_ga_constant('clip_type').lower() == 'zero':
                     clip_chromosome_to_zero(c1_chromosome)
                     clip_chromosome_to_zero(c2_chromosome)
+
+            set_chromosome_bounding_vertices_to_zero(c1_chromosome)
+            set_chromosome_bounding_vertices_to_zero(c2_chromosome)
 
             # Create children from the new chromosomes
             c1 = Car.create_car_from_chromosome(p1.world, p1.winning_tile, p1.lowest_y_pos, c1_chromosome)
@@ -460,7 +408,13 @@ class MainWindow(QMainWindow):
         # If the leader is None, then that means no new leader was found because everyone is dead.
         # Need a new generation then
         else:
-            print('new gen needed')
+            self.next_generation()
+            self.cars = self.population.individuals
+            self.game_window.cars = self.population.individuals
+            leader = self.find_new_leader()
+            self.leader = leader
+            self.game_window.leader = leader
+            return
 
         self.world.ClearForces()
 

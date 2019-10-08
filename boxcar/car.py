@@ -60,6 +60,7 @@ class Car(Individual):
             if wheel_radius > 0.0 and wheel_density > 0.0:
                 self.wheels.append(Wheel(self.world, wheel_radius, wheel_density))
                 self._wheel_vertices.append(i)  # The chassis vertex this is going to attach to
+        self.num_wheels = len(self.wheels)
 
         # Calculate mass of car
         self.mass = self.chassis.mass
@@ -115,7 +116,8 @@ class Car(Individual):
         return car
 
     def calculate_fitness(self) -> None:
-        pass
+        fitness = (self.max_position ** 3) - (self.num_wheels ** 5) - self.frames
+        self._fitness = max(fitness, 0.001)
     
     @property
     def fitness(self) -> float:
@@ -215,7 +217,7 @@ class Car(Individual):
             return True
 
         # If we have not improved or are going very slow, update failures and destroy if needed
-        if current_position.x <= self.max_position or self.linear_velocity.x < .001:
+        if current_position.x <= self.max_position or self.linear_velocity.x < .1:
             self.num_failures += 1
 
         if current_position.y < self.lowest_y_pos:
@@ -363,7 +365,7 @@ def create_chassis(world: b2World, vertices: List[b2Vec2], densities: List[float
     # Create body definition
     body_def = b2BodyDef()
     body_def.type = b2_dynamicBody
-    body_def.position = b2Vec2(0, 1)
+    body_def.position = b2Vec2(0, 2)  # Create at (0,1 so it's slightly above the track)
 
     body = world.CreateBody(body_def)
 
@@ -393,5 +395,18 @@ def _create_chassis_part(body: b2Body, point0: b2Vec2, point1: b2Vec2, density: 
     fixture_def.restitution = 0.2
     fixture_def.groupIndex = -1
     fixture_def.shape.vertices = vertices
+    #@TODO: sometimes rotational_intertia be is <0... need to fix that
+    try:
+        body.CreateFixture(fixture_def)
+    except:
+        print(vertices)
+        print(b2Dot(body.localCenter, body.localCenter))
+        massData = b2MassData()
+        massData.mass = body.mass
+        # massData.center = body.center
+        massData.I = 0.00000001
+        body.massData = massData
+        body.CreateFixture(fixture_def)
+        print( 'successfully handled exception')
+        
 
-    body.CreateFixture(fixture_def)
