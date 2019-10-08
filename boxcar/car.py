@@ -9,6 +9,14 @@ from genetic_algorithm.individual import Individual
 from typing import List, Optional, Union
 import math
 
+genes = {
+    # Gene name              row(s)
+    'chassis_vertices_x':    0,
+    'chassis_vertices_y':    1,
+    'chassis_densities':     2,
+    'wheel_radii':           3,
+    'wheel_densities':       4,
+}
 
 class Car(Individual):
     def __init__(self, world: b2World, wheel_radii: List[float], wheel_densities: List[float], 
@@ -128,19 +136,14 @@ class Car(Individual):
         self._fitness = val
 
     def encode_chromosome(self) -> None:
-        #### Rows 0-2 are for chassis related stuff
-        # row 0 - chassis vertices (x portion)
-        self._chromosome[0, :] = np.array([vertex.x for vertex in self.chassis_vertices])
-        # row 1- chassis vertices (y portion)
-        self._chromosome[1, :] = np.array([vertex.y for vertex in self.chassis_vertices])
-        # row 2 - chassis density. Each index is a density for a corresponding chassis
-        self._chromosome[2, :] = np.array([density for density in self.chassis_densities])
+        #### Chassis stuff
+        self._chromosome[genes['chassis_vertices_x'], :] = np.array([vertex.x for vertex in self.chassis_vertices])
+        self._chromosome[genes['chassis_vertices_y'], :] = np.array([vertex.y for vertex in self.chassis_vertices])
+        self._chromosome[genes['chassis_densities'], :] = np.array([density for density in self.chassis_densities])
 
-        #### Rows 3-5
-        # row 3 - wheel radius
-        self._chromosome[3, :] = np.array([radius for radius in self.wheel_radii])
-        # row 4 - wheel density
-        self._chromosome[4, :] = np.array([density for density in self.wheel_densities])
+        #### Wheel stuff
+        self._chromosome[genes['wheel_radii'], :] = np.array([radius for radius in self.wheel_radii])
+        self._chromosome[genes['wheel_densities'], :] = np.array([density for density in self.wheel_densities])
 
     def decode_chromosome(self) -> None:
         #@TODO: I may need to ignore the 0,2,4,6 vertices since those are bounding vertices and I'm not sure if there will
@@ -154,20 +157,16 @@ class Car(Individual):
             self.is_alive = True
 
         #### Decode chassis
-        # Decode row 0 and 1 as chassis vertices (x,y)
         chassis_vertices: b2Vec2 = []
         # Don't forget to.... unzip your genes...
-        for xy_vertex in zip(*self._chromosome[0:2, :]):
+        for xy_vertex in zip(*self._chromosome[(genes['chassis_vertices_x'], genes['chassis_vertices_y']), :]):
             chassis_vertices.append(b2Vec2(xy_vertex))
         self.chassis_vertices = chassis_vertices
-        # Decode row 2 as chassis density
-        self.chassis_densities = self._chromosome[2, :]
+        self.chassis_densities = self._chromosome[genes['chassis_densities'], :]
         
         #### Decode wheel
-        # Decode row 3 as wheel radius
-        self.wheel_radii = self._chromosome[3, :]
-        # Decode row 4 as wheel density
-        self.wheel_densities = self._chromosome[4, :]
+        self.wheel_radii = self._chromosome[genes['wheel_radii'], :]
+        self.wheel_densities = self._chromosome[genes['wheel_densities'], :]
 
         # Re-create the car based off the new chromosome
         self._init_car()
@@ -211,13 +210,13 @@ class Car(Individual):
             print('winnnerr')
             return False
         # If we advanced past our max position, reset failures and max position
-        if current_position.x > self.max_position and current_position.y > self.lowest_y_pos:
+        if (current_position.x > self.max_position) and (current_position.y > self.lowest_y_pos) and (self.linear_velocity.x >= .01):
             self.num_failures = 0
             self.max_position = current_position.x
             return True
 
         # If we have not improved or are going very slow, update failures and destroy if needed
-        if current_position.x <= self.max_position or self.linear_velocity.x < .1:
+        if current_position.x <= self.max_position or self.linear_velocity.x < .01:
             self.num_failures += 1
 
         if current_position.y < self.lowest_y_pos:
@@ -280,6 +279,18 @@ def create_random_car(world: b2World, winning_tile: b2Vec2, lowest_y_pos: float)
     min_chassis_axis = get_boxcar_constant('min_chassis_axis')
     max_chassis_axis = get_boxcar_constant('max_chassis_axis')
 
+    ####
+    # The chassis vertices are on a grid and defined by v0-v7 like so:
+    # 
+    #             v2
+    #              |
+    #          v3  |  v1
+    #     v4 -------------- v0
+    #          v5  |  v7
+    #              |
+    #             v6
+    #
+    # V0, V2, V4 and V6 are on an axis, while the V1 is defined somewhere between V0 and V2, V3 is defined somewhere between V2 and V4, etc.
     chassis_vertices = []
     chassis_vertices.append(b2Vec2(random.uniform(min_chassis_axis, max_chassis_axis), 0))
     chassis_vertices.append(b2Vec2(random.uniform(min_chassis_axis, max_chassis_axis), random.uniform(min_chassis_axis, max_chassis_axis)))
@@ -296,6 +307,12 @@ def create_random_car(world: b2World, winning_tile: b2Vec2, lowest_y_pos: float)
 
 
     return Car(world, wheel_radii, wheel_densities, chassis_vertices, densities, winning_tile, lowest_y_pos)
+
+def smart_clip(chromosome: np.ndarray) -> None:
+    np.clip(chromosome[genes['chassis_densities'], :],
+            0.0001,
+            np.inf,
+            out=chromosome[genes['chassis_densities'], :])
 
 def clip_chromosome(chromosome: np.ndarray) -> None:
     """
@@ -327,6 +344,7 @@ def set_chromosome_bounding_vertices_to_zero(chromosome: np.ndarray) -> None:
     #### Set the y-component of V0 and V4 to 0
     # Row 1 is y-component for chassis vertices
     chromosome[1, (0, 4)] = 0.0
+
     
 
 def clip_chromosome_to_zero(chromosome: np.ndarray) -> None:

@@ -2,11 +2,11 @@ from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QScrollArea, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QFormLayout
 from PyQt5.QtGui import QPainter, QBrush, QPen, QPolygonF, QColor
 from PyQt5.QtCore import Qt, QPointF, QTimer, QRect
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from Box2D import *
 import random
 from boxcar.floor import Floor
-from boxcar.car import Car, create_random_car, clip_chromosome, clip_chromosome_to_zero, set_chromosome_bounding_vertices_to_zero
+from boxcar.car import Car, create_random_car, clip_chromosome, clip_chromosome_to_zero, set_chromosome_bounding_vertices_to_zero, smart_clip
 from genetic_algorithm.population import Population
 from genetic_algorithm.crossover import simulated_binary_crossover as SBX
 from genetic_algorithm.crossover import single_point_binary_crossover as SPBX
@@ -25,6 +25,7 @@ g_best_car = None
 
 ## Constants ##
 scale = 70
+default_scale = 70
 FPS = 60
 
 
@@ -296,8 +297,10 @@ class MainWindow(QMainWindow):
                     clip_chromosome_to_zero(c1_chromosome)
                     clip_chromosome_to_zero(c2_chromosome)
 
-            set_chromosome_bounding_vertices_to_zero(c1_chromosome)
-            set_chromosome_bounding_vertices_to_zero(c2_chromosome)
+            # set_chromosome_bounding_vertices_to_zero(c1_chromosome)
+            # set_chromosome_bounding_vertices_to_zero(c2_chromosome)
+            smart_clip(c1_chromosome)
+            smart_clip(c2_chromosome)
 
             # Create children from the new chromosomes
             c1 = Car.create_car_from_chromosome(p1.world, p1.winning_tile, p1.lowest_y_pos, c1_chromosome)
@@ -385,8 +388,10 @@ class MainWindow(QMainWindow):
 
     def _update(self) -> None:
         for car in self.cars:
+
             if not car.is_alive:
                 continue
+            # Did the car die/win?
             if not car.update():
                 # Decrement the number of cars alive
                 self.num_cars_alive -= 1
@@ -398,10 +403,14 @@ class MainWindow(QMainWindow):
                     self.leader = leader
                     self.game_window.leader = leader
             else:
-                car_pos = car.position.x
-                if car_pos > self.leader.position.x:
-                    self.leader = car
-                    self.game_window.leader = car
+                if not self.leader:
+                    self.leader = leader
+                    self.game_window.leader = leader
+                else:
+                    car_pos = car.position.x
+                    if car_pos > self.leader.position.x:
+                        self.leader = car
+                        self.game_window.leader = car
         # If the leader is valid, then just pan to the leader
         if self.leader:
             self.game_window.pan_camera_to_leader()
@@ -461,6 +470,14 @@ class MainWindow(QMainWindow):
             pass
         else:
             raise Exception('Unable to determine valid mutation based off probabilities')
+    
+    def keyPressEvent(self, event):
+        global scale
+        key = event.key()
+        if key == Qt.Key_Z:
+            scale += 1
+        if key == Qt.Key_C:
+            scale -= 1
 
 if __name__ == "__main__":
     world = b2World(get_boxcar_constant('gravity'))
