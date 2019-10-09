@@ -29,8 +29,8 @@ settings['boxcar'] = {
         'ramp_increasing_angle': (1.2, (float, type(None))),
         'ramp_start_angle': (1, (float, type(None))),
         'ramp_increasing_type': ('multiply', (str, type(None))),
-
         'ramp_max_angle': (45, float),
+        
         'ramp_approach_distance': (10, float),
         'ramp_distance_needed_to_jump': (5, float),
 
@@ -82,10 +82,22 @@ settings['ga'] = {
     # Crossover
     'probability_SBX': (1.00, float),
     'SBX_eta': (1, float),
+    'crossover_selection': ('tournament', str),
+    'tournament_size': (5, int),
 
     # Misc.
     'should_clip': (False, bool),
-    'clip_type': ('bounds', str)
+    'clip_type': ('bounds', str),
+
+    # Fitness function
+    'fitness_function': (lambda max_position, num_wheels, total_chassis_volume, total_wheels_volume, frames: 
+                        (max_position * 10) ** 3.5 -
+                        (num_wheels ** 5) -
+                        (.4 * total_chassis_volume) - 
+                        (.4 * total_wheels_volume) - 
+                        frames,
+                        type(lambda x:x)
+    ),
 }
 
 def _verify_constants() -> None:

@@ -212,6 +212,7 @@ class MainWindow(QMainWindow):
         self.left = 150
         self.width = 1100
         self.height = 700
+        self.max_fitness = 0.0
 
         self.manual_control = False
 
@@ -256,6 +257,13 @@ class MainWindow(QMainWindow):
         # Calculate fit
         for individual in self.population.individuals:
             individual.calculate_fitness()
+        
+        # Grab the best individual and compare to best fitness
+        best_ind = self.population.fittest_individual
+        if best_ind.fitness > self.max_fitness:
+            self.max_fitness = best_ind.fitness
+            self._set_max_fitness()
+
 
         self.population.individuals = elitism_selection(self.population, get_ga_constant('num_parents'))
 
@@ -289,12 +297,14 @@ class MainWindow(QMainWindow):
 
         # Keep adding children until we reach the size we need
         while len(next_pop) < self._next_gen_size:
-            # r1 = random.randint(0, len(self.population.individuals)-1)
-            # r2 = random.randint(0, len(self.population.individuals)-1)
-            # while r2 == r1:
-            #     r2 = random.randint(0, len(self.population) - 1)
-            # p1, p2 = self.population.individuals[r1], self.population.individuals[r2]
-            p1, p2 = tournament_selection(self.population, 2, 5)
+            # Tournament crossover
+            if get_ga_constant('crossover_selection').lower() == 'tournament':
+                p1, p2 = tournament_selection(self.population, 2, get_ga_constant('tournament_size'))
+            # Roulette
+            elif get_ga_constant('crossover_selection').lower() == 'roulette':
+                p1, p2 = roulette_wheel_selection(self.population, 2)
+            else:
+                raise Exception('crossover_selection "{}" is not supported'.format(get_ga_constant('crossover_selection').lower()))
 
             # Crossover
             c1_chromosome, c2_chromosome = self._crossover(p1.chromosome, p2.chromosome)
@@ -303,19 +313,6 @@ class MainWindow(QMainWindow):
             self._mutation(c1_chromosome)
             self._mutation(c2_chromosome)
 
-            # Should we clip the chromosome values?
-            # @NOTE: Each gene has a very different range of potential values
-            if get_ga_constant('should_clip'):
-                if get_ga_constant('clip_type').lower() == 'bounds':
-                    clip_chromosome(c1_chromosome)
-                    clip_chromosome(c2_chromosome)
-
-                elif get_ga_constant('clip_type').lower() == 'zero':
-                    clip_chromosome_to_zero(c1_chromosome)
-                    clip_chromosome_to_zero(c2_chromosome)
-
-            # set_chromosome_bounding_vertices_to_zero(c1_chromosome)
-            # set_chromosome_bounding_vertices_to_zero(c2_chromosome)
             smart_clip(c1_chromosome)
             smart_clip(c2_chromosome)
 
@@ -402,11 +399,14 @@ class MainWindow(QMainWindow):
     def _set_number_of_cars_alive(self) -> None:
         self.stats_window.current_num_alive.setText(str(self.num_cars_alive))
 
+    def _set_max_fitness(self) -> None:
+        self.stats_window.best_fitness.setText(str(int(self.max_fitness)))
+
 
     def _update(self) -> None:
         for car in self.cars:
-            if car is self.leader and self.leader:
-                print(car.linear_velocity)
+            # if car is self.leader and self.leader:
+            #     print(car.linear_velocity)
             if not car.is_alive:
                 continue
             # Did the car die/win?

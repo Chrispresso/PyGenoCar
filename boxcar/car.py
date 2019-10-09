@@ -3,7 +3,7 @@ import numpy as np
 from typing import List
 from numpy import random
 import random as rand
-from settings import get_boxcar_constant
+from settings import get_boxcar_constant, get_ga_constant
 from .wheel import *
 from genetic_algorithm.individual import Individual
 from typing import List, Optional, Union
@@ -57,6 +57,13 @@ class Car(Individual):
 
     def _init_car(self):
         self.chassis = create_chassis(self.world, self.chassis_vertices, self.chassis_densities)
+        
+        # Calculate chassis volume
+        self.chassis_volume = 0.0
+        for fixture in self.chassis.fixtures:
+            mass = fixture.massData.mass
+            density = fixture.density
+            self.chassis_volume += mass / density
 
         # Create wheels from radius/density
         # Since the radius/density arrays are the same length as the chassis vertices, then if there is a positive
@@ -94,6 +101,13 @@ class Car(Individual):
             joint_def.bodyA = self.chassis
             joint_def.bodyB = self.wheels[i].body
             self.world.CreateJoint(joint_def)
+
+        # Calculate volume of wheels
+        self.wheels_volume = 0.0
+        for wheel in self.wheels:
+            mass = wheel.body.fixtures[0].massData.mass
+            density = wheel.body.fixtures[0].density
+            self.wheels_volume += mass / density
     
 
     def _init_ga_settings(self) -> None:
@@ -124,9 +138,14 @@ class Car(Individual):
         return car
 
     def calculate_fitness(self) -> None:
-        fitness = (self.max_position ** 3) - (self.num_wheels ** 5) - self.frames
-        self._fitness = max(fitness, 0.001)
-    
+        func = get_ga_constant('fitness_function')
+        fitness = func(max(self.max_position, 0.0),
+                       self.num_wheels,
+                       self.chassis_volume,
+                       self.wheels_volume,
+                       self.frames)
+        self._fitness = max(fitness, 0.0001)
+        
     @property
     def fitness(self) -> float:
         return self._fitness
@@ -414,17 +433,6 @@ def _create_chassis_part(body: b2Body, point0: b2Vec2, point1: b2Vec2, density: 
     fixture_def.groupIndex = -1
     fixture_def.shape.vertices = vertices
     #@TODO: sometimes rotational_intertia be is <0... need to fix that
-    try:
-        body.CreateFixture(fixture_def)
-    except:
-        print(vertices)
-        print(b2Dot(body.localCenter, body.localCenter))
-        massData = b2MassData()
-        massData.mass = body.mass
-        # massData.center = body.center
-        massData.I = 0.00000001
-        body.massData = massData
-        body.CreateFixture(fixture_def)
-        print( 'successfully handled exception')
-        
+    body.CreateFixture(fixture_def)
+
 

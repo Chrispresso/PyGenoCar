@@ -342,21 +342,21 @@ class StatsWindow(QWidget):
         hbox_num_solved.addWidget(self.num_solved_last_gen, 1)
         stats_vbox.addLayout(hbox_num_solved)
 
-        # Avg num wheels
-        avg_num_wheels_label = QLabel()
-        avg_num_wheels_label.setFont(font_bold)
-        avg_num_wheels_label.setText('Average Number of Wheels:')
-        avg_num_wheels_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.avg_num_wheels = QLabel()
-        self.avg_num_wheels.setFont(normal_font)
-        self.avg_num_wheels.setText('0') #@TODO set this first gen
-        self.avg_num_wheels.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        hbox_avg_num_wheels = QHBoxLayout()
-        hbox_avg_num_wheels.setContentsMargins(5, 0, 0, 0)
-        # Give equal weight
-        hbox_avg_num_wheels.addWidget(avg_num_wheels_label, 1)
-        hbox_avg_num_wheels.addWidget(self.avg_num_wheels, 1)
-        stats_vbox.addLayout(hbox_avg_num_wheels)
+        # # Avg num wheels
+        # avg_num_wheels_label = QLabel()
+        # avg_num_wheels_label.setFont(font_bold)
+        # avg_num_wheels_label.setText('Average Number of Wheels:')
+        # avg_num_wheels_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        # self.avg_num_wheels = QLabel()
+        # self.avg_num_wheels.setFont(normal_font)
+        # self.avg_num_wheels.setText('0') #@TODO set this first gen
+        # self.avg_num_wheels.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        # hbox_avg_num_wheels = QHBoxLayout()
+        # hbox_avg_num_wheels.setContentsMargins(5, 0, 0, 0)
+        # # Give equal weight
+        # hbox_avg_num_wheels.addWidget(avg_num_wheels_label, 1)
+        # hbox_avg_num_wheels.addWidget(self.avg_num_wheels, 1)
+        # stats_vbox.addLayout(hbox_avg_num_wheels)
 
         self.grid.addLayout(stats_vbox, 0, 0)
         # self.grid.addWidget(QLabel(),0,1)
@@ -364,37 +364,57 @@ class StatsWindow(QWidget):
         self._add_ga_settings_window()  # Finally add the GA Settings Window
     
     def _add_ga_settings_window(self) -> None:
-        self.ga_settings_window = GeneticAlgorithmSettingsWindow(self, (self.width()/4, self.height()))
-
-
-class GeneticAlgorithmSettingsWindow(QWidget):
-    def __init__(self, parent, size):
-        super().__init__(parent)
-        self.size = size
-        self.resize(size[0], size[1])
-
-        self.ga_form = QFormLayout()
-
-        self._add_ga_settings()
-
-    def _add_ga_settings(self) -> None:
+        self.ga_settings_window = QVBoxLayout()
         # GA settings title
-        self.top_down = QVBoxLayout()
         label_ga_settings = QLabel()
         label_ga_settings.setFont(font_bold)
         label_ga_settings.setText('Genetic Algorithm Settings')
         label_ga_settings.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
-        self.top_down.addWidget(label_ga_settings)
+        self.ga_settings_window.addWidget(label_ga_settings)
 
         self._add_ga_entry('selection_type', 'Selection Type:', font_bold, normal_font)
+        # Prob mutation
+        mutation_prob = '{:.1f}% Gaussian\n{:.1f}% Uniform'.format(
+            get_ga_constant('probability_gaussian') * 100.0,
+            get_ga_constant('probability_random_uniform') * 100.0
+        )
+        self._add_ga_entry(None, 'Prob. Mutation:', font_bold, normal_font, force_value=mutation_prob)
+        # Prob crossover
+        crossover_prob = '{:.1f}% SBX'.format(
+            get_ga_constant('probability_SBX') * 100.0
+        )
+        self._add_ga_entry(None, 'Prob. Crossover:', font_bold, normal_font, force_value=crossover_prob)
+        # Crossover selection
+        # Tournament crossover selection
+        if get_ga_constant('crossover_selection').lower() == 'tournament':
+            if not get_ga_constant('tournament_size'):
+                raise Exception('You must provide a tournament size if you choose "tournament" for crossover_selection.\n'+\
+                    '"tournament_size" can be anywhere from [1, len(population))')
+            parent_crossover = 'tournament of {}'.format(get_ga_constant('tournament_size'))
+        # roulette
+        elif get_ga_constant('crossover_selection').lower() == 'roulette':
+            parent_crossover = 'roulette'
+        self._add_ga_entry(None, 'Crossover Selection:', font_bold, normal_font, force_value=parent_crossover)
+        # Mutation rate
+        mutation_rate = '{:.1f}%'.format(get_ga_constant('mutation_rate')*100)
+        # static
+        if get_ga_constant('mutation_rate_type').lower() == 'static':
+            mutation_rate += ' Static'
+        # decaying
+        elif get_ga_constant('mutation_rate_type').lower() == 'decaying':
+            mutation_rate += 'Decaying'
+        self._add_ga_entry(None, 'Mutation Rate:', font_bold, normal_font, force_value=mutation_rate)
 
-        self.setLayout(self.top_down)
+
+        self.grid.addLayout(self.ga_settings_window, 0, 3)
 
     def _add_ga_entry(self, constant: str, label_text: str,
                       label_font, value_font,
                       alignment: Qt.AlignmentFlag = Qt.AlignLeft | Qt.AlignVCenter,
                       force_value = None):
-        _add_top_down_entry(self.top_down, 'ga', constant, label_text, label_font, value_font, alignment, force_value)
+        _add_top_down_entry(self.ga_settings_window, 'ga', constant, label_text, label_font, value_font, alignment, force_value)
+
+    
 
 
 def draw_border(painter: QPainter, size: Tuple[float, float]) -> None:
@@ -431,11 +451,10 @@ def _add_row_entry(form: QFormLayout, controller: str, constant: str, label_text
 
     form.addRow(label, value_label)
 
-def _add_grid_entry(grid: QtWidgets.QGridLayout, controller: str, constant: str, label_test: str,
-                    label_font, value_font,
-                    row: int, col: int,
-                    alignment: Qt.AlignmentFlag = Qt.AlignLeft | Qt.AlignVCenter,
-                    force_value=None) -> None:
+def _add_top_down_entry(layout: QVBoxLayout, controller: str, constant: str, label_text: str,
+                        label_font, value_font,
+                        alignment: Qt.AlignmentFlag = Qt.AlignLeft | Qt.AlignVCenter,
+                        force_value=None) -> None:
     hbox = QHBoxLayout()
     hbox.setContentsMargins(0, 0, 0, 0)
     # Create label
@@ -460,5 +479,5 @@ def _add_grid_entry(grid: QtWidgets.QGridLayout, controller: str, constant: str,
     hbox.addWidget(label, 1)
     hbox.addWidget(value_label, 1)
 
-    # Finally add hbox to the grid layout
-    grid.addLayout(hbox, row, col)
+    # Finally add hbox to the top-down layout
+    layout.addLayout(hbox)
