@@ -210,13 +210,13 @@ class Car(Individual):
             print('winnnerr')
             return False
         # If we advanced past our max position, reset failures and max position
-        if (current_position.x > self.max_position) and (current_position.y > self.lowest_y_pos) and (self.linear_velocity.x >= .01):
+        if (current_position.x > self.max_position) and (current_position.y > self.lowest_y_pos) and (self.linear_velocity.x >= .4):
             self.num_failures = 0
             self.max_position = current_position.x
             return True
 
         # If we have not improved or are going very slow, update failures and destroy if needed
-        if current_position.x <= self.max_position or self.linear_velocity.x < .01:
+        if current_position.x <= self.max_position or self.linear_velocity.x < .4:
             self.num_failures += 1
 
         if current_position.y < self.lowest_y_pos:

@@ -22,7 +22,6 @@ class DensityWindow(QWidget):
         self._create_linear_gradient()
 
         self.boxcar_form = QFormLayout()
-        self.ga_form = QFormLayout()
 
         self.layout = QVBoxLayout()
         column_layout = QHBoxLayout()  # For the densities and gradient
@@ -136,6 +135,13 @@ class DensityWindow(QWidget):
         label_boxcar_settings.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.layout.addWidget(label_boxcar_settings)
 
+        # Make small note
+        small_note = QLabel()
+        small_note.setFont(QtGui.QFont('Times', 8, QtGui.QFont.Normal))
+        small_note.setText('*indicates it is part of the Genetic Algorithm')
+        small_note.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.layout.addWidget(small_note)
+
         self._add_bc_row_entry('floor_tile_height', 'Tile Height:', font_bold, normal_font)
         self._add_bc_row_entry('floor_tile_width', 'Tile Width:', font_bold, normal_font)
         self._add_bc_row_entry('max_floor_tiles', 'Num Floor Tiles:', font_bold, normal_font)
@@ -173,13 +179,34 @@ class DensityWindow(QWidget):
             get_boxcar_constant('min_chassis_axis'),
             get_boxcar_constant('max_chassis_axis')
         )
-        self._add_bc_row_entry(None, 'Chassis Axis:', font_bold, normal_font, force_value=chassis_axis_range)
+        self._add_bc_row_entry(None, '*Chassis Axis:', font_bold, normal_font, force_value=chassis_axis_range)
         # Chassis Density
         chassis_density_range = '[{:.2f}, {:.2f})'.format(
             get_boxcar_constant('min_chassis_density'),
             get_boxcar_constant('max_chassis_density')
         )
-        self._add_bc_row_entry(None, 'Chassis Density:', font_bold, normal_font, force_value=chassis_density_range)
+        self._add_bc_row_entry(None, '*Chassis Density:', font_bold, normal_font, force_value=chassis_density_range)
+        # Wheel Density
+        wheel_density_range = '[{:.2f}, {:.2f})'.format(
+            get_boxcar_constant('min_wheel_density'),
+            get_boxcar_constant('max_wheel_density')
+        )
+        self._add_bc_row_entry(None, '*Wheel Density:', font_bold, normal_font, force_value=wheel_density_range)
+        # Num Wheels
+        num_wheels_range = '[{:.2f}, {:.2f}]'.format(
+            get_boxcar_constant('min_num_wheels'),
+            get_boxcar_constant('max_num_wheels')
+        )
+        self._add_bc_row_entry(None, '*Num. Wheels:', font_bold, normal_font, force_value=num_wheels_range)
+        # Wheel Radius
+        wheel_radius_range = '[{:.2f}, {:.2f})'.format(
+            get_boxcar_constant('min_wheel_radius'),
+            get_boxcar_constant('max_wheel_radius')
+        )
+        self._add_bc_row_entry(None, '*Wheel Radius:', font_bold, normal_font, force_value=wheel_radius_range)
+        
+        self._add_bc_row_entry('gravity', 'Gravity (x, y):', font_bold, normal_font)
+        self._add_bc_row_entry('fps', 'FPS:', font_bold, normal_font)
 
         widget = QWidget()
         widget.setLayout(self.boxcar_form)
@@ -193,46 +220,12 @@ class DensityWindow(QWidget):
         vbox = QVBoxLayout()
         vbox.addWidget(self.scroll_area, 0)
         self.layout.addLayout(vbox, 0) # @TODO: Adjust this
-
-    def _add_row_entry(self, form: QFormLayout, controller: str, constant: str, label_text: str,
-                       label_font, value_font,
-                       alignment: Qt.AlignmentFlag = Qt.AlignLeft | Qt.AlignVCenter,
-                       force_value=None):
-        # Hbox layout to add the label and data to
-        hbox = QHBoxLayout()
-        hbox.setContentsMargins(0,0,0,0)
-        # Create label
-        label = QLabel()
-        label.setFont(label_font)
-        label.setText(label_text)
-        label.setAlignment(alignment)
-        # Create value
-        value_label = QLabel()
-        value_label.setFont(value_font)
-        value = None
-        if controller == 'boxcar' and constant:
-            value = get_boxcar_constant(constant)
-        elif controller == 'ga' and constant:
-            value = get_ga_constant(constant)
-        elif force_value:
-            value = force_value
-
-        value_label.setText(str(value))
-
-
-        form.addRow(label, value_label)
-
+    
     def _add_bc_row_entry(self, constant: str, label_text: str,
                        label_font, value_font,
                        alignment: Qt.AlignmentFlag = Qt.AlignLeft | Qt.AlignVCenter,
                        force_value = None):
-        self._add_row_entry(self.boxcar_form, 'boxcar', constant, label_text, label_font, value_font, alignment, force_value)
-        
-    def _add_ga_row_entry(self, constant: str, label_text: str,
-                       label_font, value_font,
-                       alignment: Qt.AlignmentFlag = Qt.AlignLeft | Qt.AlignVCenter,
-                       force_value = None):
-        self._add_row_entry(self.ga_form, 'ga', constant, label_text, label_font, value_font, alignment, force_value)
+        _add_row_entry(self.boxcar_form, 'boxcar', constant, label_text, label_font, value_font, alignment, force_value)
 
 class SettingsWindow(QWidget):
     def __init__(self, parent, size):
@@ -368,6 +361,41 @@ class StatsWindow(QWidget):
         self.grid.addLayout(stats_vbox, 0, 0)
         # self.grid.addWidget(QLabel(),0,1)
         # self.grid.setColumnStretch(1,10)
+        self._add_ga_settings_window()  # Finally add the GA Settings Window
+    
+    def _add_ga_settings_window(self) -> None:
+        self.ga_settings_window = GeneticAlgorithmSettingsWindow(self, (self.width()/4, self.height()))
+
+
+class GeneticAlgorithmSettingsWindow(QWidget):
+    def __init__(self, parent, size):
+        super().__init__(parent)
+        self.size = size
+        self.resize(size[0], size[1])
+
+        self.ga_form = QFormLayout()
+
+        self._add_ga_settings()
+
+    def _add_ga_settings(self) -> None:
+        # GA settings title
+        self.top_down = QVBoxLayout()
+        label_ga_settings = QLabel()
+        label_ga_settings.setFont(font_bold)
+        label_ga_settings.setText('Genetic Algorithm Settings')
+        label_ga_settings.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.top_down.addWidget(label_ga_settings)
+
+        self._add_ga_entry('selection_type', 'Selection Type:', font_bold, normal_font)
+
+        self.setLayout(self.top_down)
+
+    def _add_ga_entry(self, constant: str, label_text: str,
+                      label_font, value_font,
+                      alignment: Qt.AlignmentFlag = Qt.AlignLeft | Qt.AlignVCenter,
+                      force_value = None):
+        _add_top_down_entry(self.top_down, 'ga', constant, label_text, label_font, value_font, alignment, force_value)
+
 
 def draw_border(painter: QPainter, size: Tuple[float, float]) -> None:
     painter.setPen(QPen(Qt.black, 1, Qt.SolidLine))
@@ -377,3 +405,60 @@ def draw_border(painter: QPainter, size: Tuple[float, float]) -> None:
     qpoints = [QPointF(point[0], point[1]) for point in points]
     polygon = QPolygonF(qpoints)
     painter.drawPolygon(polygon)
+
+def _add_row_entry(form: QFormLayout, controller: str, constant: str, label_text: str,
+                   label_font, value_font,
+                   alignment: Qt.AlignmentFlag = Qt.AlignLeft | Qt.AlignVCenter,
+                   force_value=None) -> None:
+    # Create label
+    label = QLabel()
+    label.setFont(label_font)
+    label.setText(label_text)
+    label.setAlignment(alignment)
+    # Create value
+    value_label = QLabel()
+    value_label.setFont(value_font)
+    value = None
+    if controller == 'boxcar' and constant:
+        value = get_boxcar_constant(constant)
+    elif controller == 'ga' and constant:
+        value = get_ga_constant(constant)
+    elif force_value:
+        value = force_value
+
+    value_label.setText(str(value))
+
+
+    form.addRow(label, value_label)
+
+def _add_grid_entry(grid: QtWidgets.QGridLayout, controller: str, constant: str, label_test: str,
+                    label_font, value_font,
+                    row: int, col: int,
+                    alignment: Qt.AlignmentFlag = Qt.AlignLeft | Qt.AlignVCenter,
+                    force_value=None) -> None:
+    hbox = QHBoxLayout()
+    hbox.setContentsMargins(0, 0, 0, 0)
+    # Create label
+    label = QLabel()
+    label.setFont(label_font)
+    label.setText(label_text)
+    label.setAlignment(alignment)
+    # Create value
+    value_label = QLabel()
+    value_label.setFont(value_font)
+    value = None
+    if controller == 'boxcar' and constant:
+        value = get_boxcar_constant(constant)
+    elif controller == 'ga' and constant:
+        value = get_ga_constant(constant)
+    elif force_value:
+        value = force_value
+
+    value_label.setText(str(value))
+
+    # Add the labels to the hbox
+    hbox.addWidget(label, 1)
+    hbox.addWidget(value_label, 1)
+
+    # Finally add hbox to the grid layout
+    grid.addLayout(hbox, row, col)

@@ -59,9 +59,6 @@ settings['boxcar'] = {
     # World
     'gravity': ((0, -9.8), tuple),  # X/Y direction
 
-    # Genetic Algorithm
-    'num_cars_in_generation': (20, int),
-
     # Display
     'show': (True, bool), # Whether or not to display anything
     'fps': (60.0, float),

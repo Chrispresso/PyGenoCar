@@ -124,6 +124,7 @@ class GameWindow(QWidget):
         self.leader: Car = leader  # Track the leader
         self.best_car_ever = None
         self.cars = cars
+        self.manual_control = False
 
         # Camera stuff
         self._camera = b2Vec2()
@@ -136,6 +137,19 @@ class GameWindow(QWidget):
         self._camera.x -= self._camera_speed * diff_x 
         self._camera.y -= self._camera_speed * diff_y
 
+    def pan_camera_in_direction(self, direction: str, amount: int) -> None:
+        diff_x, diff_y = 0, 0
+        if direction.lower()[0] == 'u':
+            diff_y = -amount
+        elif direction.lower()[0] == 'd':
+            diff_y = amount
+        elif direction.lower()[0] == 'l':
+            diff_x = amount
+        elif direction.lower()[0] == 'r':
+            diff_x = -amount
+
+        self._camera.x -= self._camera_speed * diff_x 
+        self._camera.y -= self._camera_speed * diff_y
     def _update(self):
         """
         Main update method used. Called once every (1/FPS) second.
@@ -174,7 +188,7 @@ class GameWindow(QWidget):
         draw_border(painter, self.size)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.HighQualityAntialiasing)
-        painter.translate(200 - (self._camera.x * scale) , 200 + (self._camera.y * scale))
+        painter.translate(200 - (self._camera.x * scale) , 250 + (self._camera.y * scale))
         # painter.translate(200,300)
         painter.scale(scale, -scale)
         arr = [Qt.black, Qt.green, Qt.blue]
@@ -198,6 +212,9 @@ class MainWindow(QMainWindow):
         self.left = 150
         self.width = 1100
         self.height = 700
+
+        self.manual_control = False
+
         
         self.current_generation = 0
         self.leader = None  # What car is leading
@@ -228,7 +245,7 @@ class MainWindow(QMainWindow):
         self.game_window.cars = self.cars
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._update)
-        self._timer.start(1000//FPS)
+        self._timer.start(1000//get_boxcar_constant('fps'))
 
     
 
@@ -388,7 +405,8 @@ class MainWindow(QMainWindow):
 
     def _update(self) -> None:
         for car in self.cars:
-
+            if car is self.leader and self.leader:
+                print(car.linear_velocity)
             if not car.is_alive:
                 continue
             # Did the car die/win?
@@ -412,11 +430,11 @@ class MainWindow(QMainWindow):
                         self.leader = car
                         self.game_window.leader = car
         # If the leader is valid, then just pan to the leader
-        if self.leader:
+        if not self.manual_control and self.leader:
             self.game_window.pan_camera_to_leader()
         # If the leader is None, then that means no new leader was found because everyone is dead.
         # Need a new generation then
-        else:
+        if not self.leader:
             self.next_generation()
             self.cars = self.population.individuals
             self.game_window.cars = self.population.individuals
@@ -472,12 +490,29 @@ class MainWindow(QMainWindow):
             raise Exception('Unable to determine valid mutation based off probabilities')
     
     def keyPressEvent(self, event):
-        global scale
+        global scale, default_scale
         key = event.key()
-        if key == Qt.Key_Z:
-            scale += 1
         if key == Qt.Key_C:
+            scale += 1
+        elif key == Qt.Key_Z:
             scale -= 1
+            scale = max(scale, 1)
+        elif key in (Qt.Key_W, Qt.Key_A, Qt.Key_S, Qt.Key_D):
+            self.manual_control = True
+            if key == Qt.Key_W:
+                direction = 'u'
+            elif key == Qt.Key_A:
+                direction = 'l'
+            elif key == Qt.Key_S:
+                direction = 'd'
+            elif key == Qt.Key_D:
+                direction = 'r'
+            self.game_window.pan_camera_in_direction(direction, 5)
+        elif key == Qt.Key_R:
+            self.manual_control = False
+        elif key == Qt.Key_E:
+            scale = default_scale
+
 
 if __name__ == "__main__":
     world = b2World(get_boxcar_constant('gravity'))
