@@ -220,7 +220,8 @@ class MainWindow(QMainWindow):
         self.current_generation = 0
         self.leader = None  # What car is leading
         self.num_cars_alive = get_ga_constant('num_parents')
-        self._current_individual = 0
+        self._total_individuals_ran = 0
+        self._offset_into_population = 0  # Used if we display only a certain number at a time
         
         # Determine how large the next generation is
         if get_ga_constant('selection_type').lower() == 'plus':
@@ -251,8 +252,10 @@ class MainWindow(QMainWindow):
     
 
     def next_generation(self) -> None:
+        print('next gen babyyyy')
         self._increment_generation()
-        self._current_individual = 0  # Reset back to the first individual
+        self._offset_into_population = 0
+        self._total_individuals_ran = 0  # Reset back to the first individual
 
         # Calculate fit
         for individual in self.population.individuals:
@@ -335,11 +338,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.title)
         self.setGeometry(self.top, self.left, self.width, self.height)
 
-        # Create the best_car_window
-        # self.best_car_window = BestCarWindow(self.centralWidget, (300, 200))
-        # self.best_car_window.setGeometry(QRect(800, 500, 300, 200))
-        # self.best_car_window.setObjectName('best_car_window')
-
         # Create stats_window
         self.stats_window = StatsWindow(self.centralWidget, (800, 200))
         self.stats_window.setGeometry(QRect(0, 500, 800, 200))
@@ -361,7 +359,8 @@ class MainWindow(QMainWindow):
         self.main_window.setGeometry(QRect(0, 0, 800, 500))
         self.main_window.setObjectName('main_window')
 
-        self.show()
+        if get_boxcar_constant('show'):
+            self.show()
 
     def find_new_leader(self) -> Optional[Car]:
         max_x = -1
@@ -377,6 +376,9 @@ class MainWindow(QMainWindow):
                 max_x = car_pos
 
         return leader
+
+    def _get_next_pop(self, number_of_offspring) -> List[Individual]:
+        pass
     
     def _increment_generation(self) -> None:
         self.current_generation += 1
@@ -387,13 +389,16 @@ class MainWindow(QMainWindow):
         self.floor = Floor(self.world)
 
         # Initialize cars randomly
-        self.cars = []
+        self.all_cars = []
         for i in range(get_ga_constant('num_parents')):
             car = create_random_car(self.world, self.floor.winning_tile, self.floor.lowest_y)
-            self.cars.append(car)
+            self.all_cars.append(car)
+        
+        self.cars = self.all_cars[:get_boxcar_constant('display_at_a_time')]
 
         leader = self.find_new_leader()
         self.leader = leader
+        self.game_window = leader
 
     def _set_number_of_cars_alive(self) -> None:
         self.stats_window.current_num_alive.setText(str(self.num_cars_alive))
@@ -404,12 +409,12 @@ class MainWindow(QMainWindow):
 
     def _update(self) -> None:
         for car in self.cars:
-            # if car is self.leader and self.leader:
-            #     print(car.linear_velocity)
             if not car.is_alive:
                 continue
             # Did the car die/win?
             if not car.update():
+                # Another individual has finished
+                self._total_individuals_ran += 1
                 # Decrement the number of cars alive
                 self.num_cars_alive -= 1
                 self._set_number_of_cars_alive()
@@ -431,16 +436,27 @@ class MainWindow(QMainWindow):
         # If the leader is valid, then just pan to the leader
         if not self.manual_control and self.leader:
             self.game_window.pan_camera_to_leader()
-        # If the leader is None, then that means no new leader was found because everyone is dead.
-        # Need a new generation then
+        # If there is not a leader then the generation is over OR the next group of N need to run
         if not self.leader:
-            self.next_generation()
-            self.cars = self.population.individuals
-            self.game_window.cars = self.population.individuals
-            leader = self.find_new_leader()
-            self.leader = leader
-            self.game_window.leader = leader
-            return
+            # Next N individuals need to run
+            if (self.current_generation == 0 and self._total_individuals_ran < get_ga_constant('num_parents')) or\
+               (self.current_generation > 0 and self._total_individuals_ran < self._next_gen_size):
+                self._offset_into_population += get_boxcar_constant('display_at_a_time')
+                self.cars = self.all_cars[self._offset_into_population: self._offset_into_population + get_boxcar_constant('display_at_a_time')]
+                self.game_window.cars = self.cars
+                leader = self.find_new_leader()
+                self.leader = leader
+                self.game_window.leader = leader
+                return
+            else:
+                self.next_generation()
+                self.all_cars = self.population.individuals
+                self.cars = self.all_cars[:get_boxcar_constant('display_at_a_time')]
+                self.game_window.cars = self.cars
+                leader = self.find_new_leader()
+                self.leader = leader
+                self.game_window.leader = leader
+                return
 
         self.world.ClearForces()
 
