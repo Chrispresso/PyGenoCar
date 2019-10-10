@@ -325,7 +325,7 @@ def create_random_car(world: b2World, winning_tile: b2Vec2, lowest_y_pos: float)
         densities.append(random.uniform(get_boxcar_constant('min_chassis_density'), get_boxcar_constant('max_chassis_density')))
 
 
-    return Car(world, wheel_radii, wheel_densities, chassis_vertices, densities, winning_tile, lowest_y_pos)
+    return Car(world, wheel_radii, wheel_densities, chassis_vertices, densities, winning_tile, lowest_y_pos, lifespan=get_ga_constant('lifespan'))
 
 def smart_clip(chromosome: np.ndarray) -> None:
     np.clip(chromosome[genes['chassis_densities'], :],

@@ -1,4 +1,5 @@
 from typing import Any, Tuple
+import numpy as np
 
 # Settings that control everything.
 settings = {}
@@ -71,6 +72,7 @@ settings['ga'] = {
     'num_parents': (10, int),
     'num_offspring': (10, int),
     'selection_type': ('plus', str),
+    'lifespan': (np.inf, float),
 
     # Mutation
     'probability_gaussian': (1.00, float),

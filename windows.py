@@ -404,7 +404,10 @@ class StatsWindow(QWidget):
         elif get_ga_constant('mutation_rate_type').lower() == 'decaying':
             mutation_rate += 'Decaying'
         self._add_ga_entry(None, 'Mutation Rate:', font_bold, normal_font, force_value=mutation_rate)
-
+        # Lifespan
+        lifespan = get_ga_constant('lifespan')
+        lifespan = str(lifespan) if lifespan != np.inf else 'infinity'
+        self._add_ga_entry(None, 'Lifespan:', font_bold, normal_font, force_value=lifespan)
 
         self.grid.addLayout(self.ga_settings_window, 0, 3)
 

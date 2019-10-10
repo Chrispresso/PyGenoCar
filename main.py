@@ -264,7 +264,6 @@ class MainWindow(QMainWindow):
             self.max_fitness = best_ind.fitness
             self._set_max_fitness()
 
-
         self.population.individuals = elitism_selection(self.population, get_ga_constant('num_parents'))
 
         random.shuffle(self.population.individuals)
