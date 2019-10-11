@@ -52,8 +52,8 @@ settings['boxcar'] = {
     # Wheel
     'min_wheel_density': (40.0, float),
     'max_wheel_density': (200.0, float),
-    'min_num_wheels': (2, int),
-    'max_num_wheels': (4, int),
+    'min_num_wheels': (0, int),
+    'max_num_wheels': (0, int),
     'min_wheel_radius': (0.1, float),
     'max_wheel_radius': (0.5, float),
 
@@ -61,18 +61,18 @@ settings['boxcar'] = {
     'gravity': ((0, -9.8), tuple),  # X/Y direction
 
     # Display
-    'show': (False, bool), # Whether or not to display anything
+    'show': (True, bool),  # Whether or not to display anything
     'fps': (60.0, float),
-    'display_at_a_time': (20, int)
+    'run_at_a_time': (10, int)
 }
 
 ## Genetic algorithm specific settings
 settings['ga'] = {
     # Selection
-    'num_parents': (500, int),
-    'num_offspring': (500, int),
+    'num_parents': (20, int),
+    'num_offspring': (20, int),
     'selection_type': ('plus', str),
-    'lifespan': (np.inf, float),
+    'lifespan': (3, float),
 
     # Mutation
     'probability_gaussian': (1.00, float),
@@ -93,12 +93,12 @@ settings['ga'] = {
 
     # Fitness function
     'fitness_function': (lambda max_position, num_wheels, total_chassis_volume, total_wheels_volume, frames: 
-                        (max_position * 10) ** 3.5 -
-                        (num_wheels ** 5) -
-                        (.4 * total_chassis_volume) - 
-                        (.4 * total_wheels_volume) - 
-                        frames,
-                        type(lambda x:x)
+                         (max_position * 10) ** 3.5 -
+                         (num_wheels ** 5) -
+                         (.4 * total_chassis_volume) -
+                         (.4 * total_wheels_volume) -
+                         frames,
+                         type(lambda x: x)
     ),
 }
 

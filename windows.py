@@ -294,6 +294,22 @@ class StatsWindow(QWidget):
         hbox_num_alive.addWidget(self.current_num_alive, 1)
         stats_vbox.addLayout(hbox_num_alive)
 
+        # population size
+        pop_size_label = QLabel()
+        pop_size_label.setFont(font_bold)
+        pop_size_label.setText('Population Size:')
+        pop_size_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.pop_size = QLabel()
+        self.pop_size.setFont(normal_font)
+        self.pop_size.setText(str(get_ga_constant('num_parents')))
+        self.pop_size.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        hbox_pop_size = QHBoxLayout()
+        hbox_pop_size.setContentsMargins(5, 0, 0, 0)
+        # Give equal weight
+        hbox_pop_size.addWidget(pop_size_label, 1)
+        hbox_pop_size.addWidget(self.pop_size, 1)
+        stats_vbox.addLayout(hbox_pop_size)
+
         # Create best fitness
         best_fitness_label = QLabel()
         best_fitness_label.setFont(font_bold)
@@ -313,7 +329,7 @@ class StatsWindow(QWidget):
         # Average fitness last gen
         average_fitness_label = QLabel()
         average_fitness_label.setFont(font_bold)
-        average_fitness_label.setText('Average Fitness Last Gen:')
+        average_fitness_label.setText('Mean Fitness Last Gen:')
         average_fitness_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.average_fitness_last_gen = QLabel()
         self.average_fitness_last_gen.setFont(normal_font)
@@ -342,21 +358,21 @@ class StatsWindow(QWidget):
         hbox_num_solved.addWidget(self.num_solved_last_gen, 1)
         stats_vbox.addLayout(hbox_num_solved)
 
-        # # Avg num wheels
-        # avg_num_wheels_label = QLabel()
-        # avg_num_wheels_label.setFont(font_bold)
-        # avg_num_wheels_label.setText('Average Number of Wheels:')
-        # avg_num_wheels_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        # self.avg_num_wheels = QLabel()
-        # self.avg_num_wheels.setFont(normal_font)
-        # self.avg_num_wheels.setText('0') #@TODO set this first gen
-        # self.avg_num_wheels.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        # hbox_avg_num_wheels = QHBoxLayout()
-        # hbox_avg_num_wheels.setContentsMargins(5, 0, 0, 0)
-        # # Give equal weight
-        # hbox_avg_num_wheels.addWidget(avg_num_wheels_label, 1)
-        # hbox_avg_num_wheels.addWidget(self.avg_num_wheels, 1)
-        # stats_vbox.addLayout(hbox_avg_num_wheels)
+        # generations without improvement
+        gens_without_improvement_label = QLabel()
+        gens_without_improvement_label.setFont(font_bold)
+        gens_without_improvement_label.setText('Stale Generations:')
+        gens_without_improvement_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.gens_without_improvement = QLabel()
+        self.gens_without_improvement.setFont(normal_font)
+        self.gens_without_improvement.setText('0')
+        self.gens_without_improvement.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        hbox_gens_without_improvement = QHBoxLayout()
+        hbox_gens_without_improvement.setContentsMargins(5, 0, 0, 0)
+        # Give equal weight
+        hbox_gens_without_improvement.addWidget(gens_without_improvement_label, 1)
+        hbox_gens_without_improvement.addWidget(self.gens_without_improvement, 1)
+        stats_vbox.addLayout(hbox_gens_without_improvement)
 
         self.grid.addLayout(stats_vbox, 0, 0)
         # self.grid.addWidget(QLabel(),0,1)
@@ -406,7 +422,7 @@ class StatsWindow(QWidget):
         self._add_ga_entry(None, 'Mutation Rate:', font_bold, normal_font, force_value=mutation_rate)
         # Lifespan
         lifespan = get_ga_constant('lifespan')
-        lifespan = str(lifespan) if lifespan != np.inf else 'infinity'
+        lifespan = str(lifespan) if lifespan != np.inf else 'infinite'
         self._add_ga_entry(None, 'Lifespan:', font_bold, normal_font, force_value=lifespan)
 
         self.grid.addLayout(self.ga_settings_window, 0, 3)

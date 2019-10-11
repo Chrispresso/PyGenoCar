@@ -1,6 +1,6 @@
 from Box2D import *
 import numpy as np
-from typing import List
+from typing import List, Union
 from numpy import random
 import random as rand
 from settings import get_boxcar_constant, get_ga_constant
@@ -22,7 +22,7 @@ class Car(Individual):
     def __init__(self, world: b2World, wheel_radii: List[float], wheel_densities: List[float], 
                  chassis_vertices: List[b2Vec2], chassis_densities: List[float],
                  winning_tile: b2Vec2, lowest_y_pos: float, 
-                 lifespan: Optional[Union[int, float]] = np.inf, from_chromosome: bool = False) -> None:
+                 lifespan: Union[int, float], from_chromosome: bool = False) -> None:
         self.world = world
         self.wheel_radii = wheel_radii
         self.wheel_densities = wheel_densities
@@ -131,8 +131,8 @@ class Car(Individual):
 
     @classmethod
     def create_car_from_chromosome(cls, world: b2World, winning_tile: b2Vec2, lowest_y_pos: float,
-                                   chromosome: np.ndarray) -> 'Car':
-        car = Car(world, None, None, None, None, winning_tile, lowest_y_pos, from_chromosome=True)
+                                   lifespan: Union[int, float], chromosome: np.ndarray) -> 'Car':
+        car = Car(world, None, None, None, None, winning_tile, lowest_y_pos, lifespan, from_chromosome=True)
         car._chromosome = np.copy(chromosome)
         car.decode_chromosome()
         return car
