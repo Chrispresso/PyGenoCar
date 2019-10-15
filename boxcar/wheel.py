@@ -2,10 +2,10 @@ from Box2D import *
 from settings import get_boxcar_constant
 
 class Wheel(object):
-    def __init__(self, world: b2World, radius: float, density: float, motor_speed: float, restitution: float = 0.2):
+    def __init__(self, world: b2World, radius: float, density: float, restitution: float = 0.2):
         self.radius = radius
         self.density = density
-        self.motor_speed = motor_speed  # Used when it's connected to a chassis
+        # self.motor_speed = motor_speed  # Used when it's connected to a chassis
         self.restitution = restitution
 
         # Create body def
@@ -48,5 +48,5 @@ class Wheel(object):
 
 
 def clone(self) -> 'Wheel':
-    clone = Wheel(self.world, self.radius, self.density, self.motor_speed, self.restitution)
+    clone = Wheel(self.world, self.radius, self.density, self.restitution)
     return clone

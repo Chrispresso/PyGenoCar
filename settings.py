@@ -46,18 +46,16 @@ settings['boxcar'] = {
     # Chassis
     'min_chassis_axis': (0.1, float),
     'max_chassis_axis': (1.3, float),
-    'min_chassis_density': (30.0, float),  # 30
-    'max_chassis_density': (300.0, float),  # 300
+    'min_chassis_density': (30.0, float),
+    'max_chassis_density': (300.0, float),
 
-    # Wheel
+    # Wheel     
     'min_wheel_density': (40.0, float),
     'max_wheel_density': (200.0, float),
     'min_num_wheels': (0, int),
-    'max_num_wheels': (2, int),
+    'max_num_wheels': (3, int),
     'min_wheel_radius': (0.1, float),
     'max_wheel_radius': (0.5, float),
-    'min_wheel_motor_speed': (-15, float),
-    'max_wheel_motor_speed': (-15, float),
 
     # World
     'gravity': ((0, -9.8), tuple),  # X/Y direction
@@ -71,10 +69,10 @@ settings['boxcar'] = {
 ## Genetic algorithm specific settings
 settings['ga'] = {
     # Selection
-    'num_parents': (20, int),
-    'num_offspring': (20, int),
+    'num_parents': (60, int),
+    'num_offspring': (60, int),
     'selection_type': ('plus', str),
-    'lifespan': (3, float),
+    'lifespan': (5, float),
 
     # Mutation
     'probability_gaussian': (1.00, float),
@@ -86,19 +84,18 @@ settings['ga'] = {
     # Crossover
     'probability_SBX': (1.00, float),
     'SBX_eta': (1, float),
-    'crossover_selection': ('tournament', str),
+    'crossover_selection': ('roulette', str),
     'tournament_size': (5, int),
 
     # Misc.
-    'should_clip': (False, bool),
-    'clip_type': ('bounds', str),
+    'should_clip': (True, bool),
 
     # Fitness function
     'fitness_function': (lambda max_position, num_wheels, total_chassis_volume, total_wheels_volume, frames: 
-                         (max_position * 10) ** 3.5 -
+                         (max_position * 3) ** 3.5 -
                          (num_wheels ** 5) -
-                         (.4 * total_chassis_volume) -
-                         (.4 * total_wheels_volume) -
+                         ((total_chassis_volume * 5) ** 3) -
+                         ((total_wheels_volume * 10) ** 5) -
                          frames,
                          type(lambda x: x)
     ),
@@ -118,6 +115,9 @@ def _verify_constants() -> None:
     if failed:
         failed_constants = '\n'.join(fail for fail in failed)
         raise Exception('The following constants have invalid values for their types:\n{}'.format(failed_constants))
+
+def _verify_ranges() -> None:
+    failed = []
 
 def _get_constant(constant: str, controller: str) -> Any:
     """

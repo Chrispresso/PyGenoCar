@@ -205,11 +205,11 @@ class DensityWindow(QWidget):
         )
         self._add_bc_row_entry(None, '*Wheel Radius:', font_bold, normal_font, force_value=wheel_radius_range)
         # Wheel motor wpeed
-        wheel_motor_speed_range = '[{:.2f}, {:.2f})'.format(
-            get_boxcar_constant('min_wheel_motor_speed'),
-            get_boxcar_constant('max_wheel_motor_speed')
-        )
-        self._add_bc_row_entry(None, '*Wheel Speed:', font_bold, normal_font, force_value=wheel_motor_speed_range)
+        # wheel_motor_speed_range = '[{:.2f}, {:.2f})'.format(
+        #     get_boxcar_constant('min_wheel_motor_speed'),
+        #     get_boxcar_constant('max_wheel_motor_speed')
+        # )
+        # self._add_bc_row_entry(None, '*Wheel Speed:', font_bold, normal_font, force_value=wheel_motor_speed_range)
         
         self._add_bc_row_entry('gravity', 'Gravity (x, y):', font_bold, normal_font)
         self._add_bc_row_entry('fps', 'FPS:', font_bold, normal_font)

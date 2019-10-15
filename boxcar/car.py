@@ -18,19 +18,19 @@ genes = {
     'chassis_densities':     2,
     'wheel_radii':           3,
     'wheel_densities':       4,
-    'wheel_motor_speeds':    5,
+    # 'wheel_motor_speeds':    5,
 }
 
 class Car(Individual):
     def __init__(self, world: b2World, 
-                 wheel_radii: List[float], wheel_densities: List[float], wheel_motor_speeds: List[float],
+                 wheel_radii: List[float], wheel_densities: List[float],# wheel_motor_speeds: List[float],
                  chassis_vertices: List[b2Vec2], chassis_densities: List[float],
                  winning_tile: b2Vec2, lowest_y_pos: float, 
                  lifespan: Union[int, float], from_chromosome: bool = False) -> None:
         self.world = world
         self.wheel_radii = wheel_radii
         self.wheel_densities = wheel_densities
-        self.wheel_motor_speeds = wheel_motor_speeds
+        # self.wheel_motor_speeds = wheel_motor_speeds
         # self.wheels = wheels
         # self.wheel_vertices = wheel_vertices
         self.chassis_vertices = chassis_vertices
@@ -75,10 +75,11 @@ class Car(Individual):
         # value, we say the wheel is at the index for the chassis vertex
         self.wheels = []
         self._wheel_vertices = []
-        for i, (wheel_radius, wheel_density, wheel_motor_speed) in enumerate(zip(self.wheel_radii, self.wheel_densities, self.wheel_motor_speeds)):
+        # for i, (wheel_radius, wheel_density, wheel_motor_speed) in enumerate(zip(self.wheel_radii, self.wheel_densities, self.wheel_motor_speeds)):
+        for i, (wheel_radius, wheel_density) in enumerate(zip(self.wheel_radii, self.wheel_densities)):
             # Are both above 0?
             if wheel_radius > 0.0 and wheel_density > 0.0:
-                self.wheels.append(Wheel(self.world, wheel_radius, wheel_density, wheel_motor_speed))
+                self.wheels.append(Wheel(self.world, wheel_radius, wheel_density)) #wheel_motor_speed))
                 self._wheel_vertices.append(i)  # The chassis vertex this is going to attach to
         self.num_wheels = len(self.wheels)
 
@@ -101,7 +102,7 @@ class Car(Individual):
       
             # Set the motor torque of the wheel - vroom vroom
             joint_def.maxMotorTorque = self.wheels[i].torque
-            joint_def.motorSpeed = self.wheels[i].motor_speed  # @TODO: Make this random
+            joint_def.motorSpeed =  -15 #self.wheels[i].motor_speed  # @TODO: Make this random
             joint_def.enableMotor = True
             joint_def.bodyA = self.chassis
             joint_def.bodyB = self.wheels[i].body
@@ -138,7 +139,7 @@ class Car(Individual):
     def create_car_from_chromosome(cls, world: b2World, winning_tile: b2Vec2, lowest_y_pos: float,
                                    lifespan: Union[int, float], chromosome: np.ndarray) -> 'Car':
         car = Car(world, 
-                  None, None, None,  # Wheel stuff set to None
+                  None, None, # None,  # Wheel stuff set to None
                   None, None,        # Chassis stuff set to None
                   winning_tile, lowest_y_pos, lifespan, from_chromosome=True)
         car._chromosome = np.copy(chromosome)
@@ -171,7 +172,7 @@ class Car(Individual):
         #### Wheel stuff
         self._chromosome[genes['wheel_radii'], :] = np.array([radius for radius in self.wheel_radii])
         self._chromosome[genes['wheel_densities'], :] = np.array([density for density in self.wheel_densities])
-        self._chromosome[genes['wheel_motor_speeds'], :] = np.array([motor_speed for motor_speed in self.wheel_motor_speeds])
+        # self._chromosome[genes['wheel_motor_speeds'], :] = np.array([motor_speed for motor_speed in self.wheel_motor_speeds])
 
     def decode_chromosome(self) -> None:
         # be a complete polygon if those begin changing drastically
@@ -194,7 +195,7 @@ class Car(Individual):
         #### Decode wheel
         self.wheel_radii = self._chromosome[genes['wheel_radii'], :]
         self.wheel_densities = self._chromosome[genes['wheel_densities'], :]
-        self.wheel_motor_speeds = self._chromosome[genes['wheel_motor_speeds'], :]
+        # self.wheel_motor_speeds = self._chromosome[genes['wheel_motor_speeds'], :]
 
         # Re-create the car based off the new chromosome
         self._init_car()
@@ -294,8 +295,8 @@ def create_random_car(world: b2World, winning_tile: b2Vec2, lowest_y_pos: float)
     wheel_verts = wheel_verts[:num_wheels]
     wheel_radii = [0.0 for _ in range(8)]
     wheel_densities = [0.0 for _ in range(8)]
-    wheel_motor_speeds = [random.uniform(get_boxcar_constant('min_wheel_motor_speed'), get_boxcar_constant('max_wheel_motor_speed'))
-                          for _ in range(8)]  # Doesn't matter if this is set. There won't be a wheel if the density OR radius is 0
+    # wheel_motor_speeds = [random.uniform(get_boxcar_constant('min_wheel_motor_speed'), get_boxcar_constant('max_wheel_motor_speed'))
+    #                       for _ in range(8)]  # Doesn't matter if this is set. There won't be a wheel if the density OR radius is 0
 
     # Assign a random radius/density to vertices found in wheel_verts
     for vert_idx in wheel_verts:
@@ -337,7 +338,7 @@ def create_random_car(world: b2World, winning_tile: b2Vec2, lowest_y_pos: float)
 
 
     return Car(world, 
-               wheel_radii, wheel_densities, wheel_motor_speeds,
+               wheel_radii, wheel_densities,# wheel_motor_speeds,
                chassis_vertices, densities, 
                winning_tile, lowest_y_pos, 
                lifespan=get_ga_constant('lifespan'))

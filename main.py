@@ -333,6 +333,7 @@ class MainWindow(QMainWindow):
 
             # Grab the best individual and compare to best fitness
             best_ind = self.population.fittest_individual
+            print(best_ind.chassis_volume)
             if best_ind.fitness > self.max_fitness:
                 self.max_fitness = best_ind.fitness
                 self._set_max_fitness()
@@ -459,7 +460,7 @@ class MainWindow(QMainWindow):
                     world = self.world
                     wheel_radii = individual.wheel_radii
                     wheel_densities = individual.wheel_densities
-                    wheel_motor_speeds = individual.wheel_motor_speeds
+                    #wheel_motor_speeds = individual.wheel_motor_speeds
                     chassis_vertices = individual.chassis_vertices
                     chassis_densities = individual.chassis_densities
                     winning_tile = individual.winning_tile
@@ -469,7 +470,7 @@ class MainWindow(QMainWindow):
                     # If the individual is still alive, they survive
                     if lifespan > 0:
                         car = Car(world, 
-                                wheel_radii, wheel_densities, wheel_motor_speeds,       # Wheel
+                                wheel_radii, wheel_densities,# wheel_motor_speeds,       # Wheel
                                 chassis_vertices, chassis_densities,                    # Chassis
                                 winning_tile, lowest_y_pos,
                                 lifespan)
@@ -734,12 +735,12 @@ def save_population(population_folder: str, population: Population, settings: Di
 def parse_args():
     parser = argparse.ArgumentParser(description='PyGenoCar V1.0')
     # Save
-    parser.add_argument('--save-best', dest='save_best', nargs=1, type=str, help='destination folder to save best individiuals after each gen')
-    parser.add_argument('--save-pop', dest='save_pop', nargs=1, type=str, help='destination folder to save population after each gen')
-    parser.add_argument('--save-pop-on-close', dest='save_pop_on_close', nargs=1, type=str, help='destination to save the population when program exits')
+    parser.add_argument('--save-best', dest='save_best', type=str, help='destination folder to save best individiuals after each gen')
+    parser.add_argument('--save-pop', dest='save_pop', type=str, help='destination folder to save population after each gen')
+    parser.add_argument('--save-pop-on-close', dest='save_pop_on_close', type=str, help='destination to save the population when program exits')
 
     # Replay @NOTE: Only supports replaying the best individual. Not a list of populations.
-    parser.add_argument('--replay-from-folder', dest='replay_from_folder', nargs=1, type=str, help='destination to replay individuals from')
+    parser.add_argument('--replay-from-folder', dest='replay_from_folder', type=str, help='destination to replay individuals from')
 
     args = parser.parse_args()
     return args
@@ -750,6 +751,7 @@ if __name__ == "__main__":
     args = parse_args()
     print(args)
     print(dir(args))
+    print(args.save_best)
     replay = False
     if args.replay_from_folder:
         if 'settings.pkl' not in os.listdir(args.replay_from_folder):
