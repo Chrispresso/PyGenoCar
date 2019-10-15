@@ -5,20 +5,20 @@ import numpy as np
 settings = {}
 settings['boxcar'] = {}
 settings['ga'] = {}
-__settings_cache = {} 
+__settings_cache = {}
 # The settings specific to the boxcar
 settings['boxcar'] = {
     ### Floor ###
     'floor_tile_height': (.15, float),
     'floor_tile_width': (1.5, float),
-    'max_floor_tiles': (150, int),
+    'max_floor_tiles': (200, int),
     'floor_creation_type': ('gaussian', str),
         ### Floor - Gaussian random. Used when 'floor_creation_type' == 'gaussian' ###
         # Only needed if using gaussian random floor creation
         'tile_angle_mu': (8, float),
         'tile_angle_std': (15, float),
-        'tile_gaussian_denominator': ('tile_gaussian_threshold', float),
-        'tile_gaussian_threshold': ('max_floor_tiles', int),
+        'tile_gaussian_denominator': (10, float),
+        'tile_gaussian_threshold': (10, int),
 
         ### Floor - ramp. Used when 'floor_creation_type' == 'ramp' ###
         # Only needed if using ramp floor creation
@@ -30,7 +30,7 @@ settings['boxcar'] = {
         'ramp_increasing_angle': (1.2, (float, type(None))),
         'ramp_start_angle': (1, (float, type(None))),
         'ramp_increasing_type': ('multiply', (str, type(None))),
-        'ramp_max_angle': (45, float),
+        'ramp_max_angle': (70, float),
         
         'ramp_approach_distance': (10, float),
         'ramp_distance_needed_to_jump': (5, float),
@@ -46,16 +46,18 @@ settings['boxcar'] = {
     # Chassis
     'min_chassis_axis': (0.1, float),
     'max_chassis_axis': (1.3, float),
-    'min_chassis_density': (30.0, float),
-    'max_chassis_density': (300.0, float),
+    'min_chassis_density': (30.0, float),  # 30
+    'max_chassis_density': (300.0, float),  # 300
 
     # Wheel
     'min_wheel_density': (40.0, float),
     'max_wheel_density': (200.0, float),
     'min_num_wheels': (0, int),
-    'max_num_wheels': (0, int),
+    'max_num_wheels': (2, int),
     'min_wheel_radius': (0.1, float),
     'max_wheel_radius': (0.5, float),
+    'min_wheel_motor_speed': (-15, float),
+    'max_wheel_motor_speed': (-15, float),
 
     # World
     'gravity': ((0, -9.8), tuple),  # X/Y direction
@@ -63,7 +65,7 @@ settings['boxcar'] = {
     # Display
     'show': (True, bool),  # Whether or not to display anything
     'fps': (60.0, float),
-    'run_at_a_time': (10, int)
+    'run_at_a_time': (20, int)  # 10
 }
 
 ## Genetic algorithm specific settings

@@ -204,6 +204,12 @@ class DensityWindow(QWidget):
             get_boxcar_constant('max_wheel_radius')
         )
         self._add_bc_row_entry(None, '*Wheel Radius:', font_bold, normal_font, force_value=wheel_radius_range)
+        # Wheel motor wpeed
+        wheel_motor_speed_range = '[{:.2f}, {:.2f})'.format(
+            get_boxcar_constant('min_wheel_motor_speed'),
+            get_boxcar_constant('max_wheel_motor_speed')
+        )
+        self._add_bc_row_entry(None, '*Wheel Speed:', font_bold, normal_font, force_value=wheel_motor_speed_range)
         
         self._add_bc_row_entry('gravity', 'Gravity (x, y):', font_bold, normal_font)
         self._add_bc_row_entry('fps', 'FPS:', font_bold, normal_font)
@@ -422,7 +428,7 @@ class StatsWindow(QWidget):
         self._add_ga_entry(None, 'Mutation Rate:', font_bold, normal_font, force_value=mutation_rate)
         # Lifespan
         lifespan = get_ga_constant('lifespan')
-        lifespan = str(lifespan) if lifespan != np.inf else 'infinite'
+        lifespan = str(int(lifespan)) if lifespan != np.inf else 'infinite'
         self._add_ga_entry(None, 'Lifespan:', font_bold, normal_font, force_value=lifespan)
 
         self.grid.addLayout(self.ga_settings_window, 0, 3)

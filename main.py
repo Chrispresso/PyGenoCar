@@ -2,12 +2,14 @@ from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QScrollArea, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QFormLayout
 from PyQt5.QtGui import QPainter, QBrush, QPen, QPolygonF, QColor
 from PyQt5.QtCore import Qt, QPointF, QTimer, QRect
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict, Any
+import argparse
+import dill as pickle
 from enum import Enum, unique
 from Box2D import *
 import random
 from boxcar.floor import Floor
-from boxcar.car import Car, create_random_car, clip_chromosome, clip_chromosome_to_zero, set_chromosome_bounding_vertices_to_zero, smart_clip
+from boxcar.car import Car, create_random_car, clip_chromosome, save_car, load_car, smart_clip
 from genetic_algorithm.population import Population
 from genetic_algorithm.individual import Individual
 from genetic_algorithm.crossover import simulated_binary_crossover as SBX
@@ -15,7 +17,9 @@ from genetic_algorithm.crossover import single_point_binary_crossover as SPBX
 from genetic_algorithm.mutation import gaussian_mutation
 from genetic_algorithm.selection import elitism_selection, roulette_wheel_selection, tournament_selection
 from settings import get_boxcar_constant, get_ga_constant
+import settings
 from windows import SettingsWindow, StatsWindow, draw_border
+import os
 
 import sys
 import time
@@ -36,10 +40,9 @@ class States(Enum):
     FIRST_GEN = 0
     FIRST_GEN_IN_PROGRESS = 1
     NEXT_GEN = 2
-    # NEXT_GEN_IN_PROGRESS = 3
     NEXT_GEN_COPY_PARENTS_OVER = 4
     NEXT_GEN_CREATE_OFFSPRING = 5
-    # OFFSPRING_IN_PROGRESS = 6
+    REPLAY = 6
 
 
 def draw_circle(painter: QPainter, body: b2Body, local=False) -> None:
@@ -47,7 +50,11 @@ def draw_circle(painter: QPainter, body: b2Body, local=False) -> None:
         if isinstance(fixture.shape, b2CircleShape):
             # Set the color of the circle to be based off wheel density
             adjust = get_boxcar_constant('max_wheel_density') - get_boxcar_constant('min_wheel_density')
-            hue_ratio = (fixture.density - get_boxcar_constant('min_wheel_density')) / adjust
+            # If the min/max are the same you will get 0 adjust. This is to prevent divide by zero.
+            if adjust == 0.0:
+                hue_ratio = 0.0
+            else:
+                hue_ratio = (fixture.density - get_boxcar_constant('min_wheel_density')) / adjust
             hue_ratio = min(max(hue_ratio, 0.0), 1.0)  # Just in case you leave the GA unbounded...
             color = QColor.fromHsvF(hue_ratio, 1., .8)
             painter.setBrush(QBrush(color, Qt.SolidPattern))
@@ -78,12 +85,13 @@ def draw_polygon(painter: QPainter, body: b2Body, poly_type: str = '', adjust_pa
             # If we are drawing a chassis, determine fill color
             if poly_type == 'chassis':
                 adjust = get_boxcar_constant('max_chassis_density') - get_boxcar_constant('min_chassis_density')
-                hue_ratio = (fixture.density - get_boxcar_constant('min_chassis_density')) / adjust
+                # If the min/max are the same you will get 0 adjust. This is to prevent divide by zero.
+                if adjust == 0.0:
+                    hue_ratio = 0.0
+                else:
+                    hue_ratio = (fixture.density - get_boxcar_constant('min_chassis_density')) / adjust
                 hue_ratio = min(max(hue_ratio, 0.0), 1.0)  # Just in case you leave the GA unbounded...
-                try:
-                    color = QColor.fromHsvF(hue_ratio, 1., .8)
-                except:
-                    print(hue_ratio)
+                color = QColor.fromHsvF(hue_ratio, 1., .8)
                 painter.setBrush(QBrush(color, Qt.SolidPattern))
             
             polygon: b2PolygonShape = fixture.shape
@@ -217,7 +225,7 @@ class GameWindow(QWidget):
         #     print([self.chassis.GetWorldPoint(vert) for vert in fixture.shape.vertices])
 
 class MainWindow(QMainWindow):
-    def __init__(self, world):
+    def __init__(self, world, replay=False):
         super().__init__()
         self.world = world
         self.title = 'Genetic Algorithm - Cars'
@@ -233,6 +241,7 @@ class MainWindow(QMainWindow):
         self.current_batch = 1
         self.batch_size = get_boxcar_constant('run_at_a_time')
         self.gen_without_improvement = 0
+        self.replay = replay
 
         self.manual_control = False
 
@@ -258,7 +267,11 @@ class MainWindow(QMainWindow):
         else:
             raise Exception('Selection type "{}" is invalid'.format(get_ga_constant('selection_type')))
 
-        self._set_first_gen()
+        if self.replay:
+            self.floor = Floor(self.world)
+            self.state = States.REPLAY
+        else:
+            self._set_first_gen()
         # self.population = Population(self.cars)
         # For now this is all I'm supporting, may change in the future. There really isn't a reason to use
         # uniform or single point here because all the values have different ranges, and if you clip them, it
@@ -278,8 +291,6 @@ class MainWindow(QMainWindow):
         self._timer.timeout.connect(self._update)
         self._timer.start(1000//get_boxcar_constant('fps'))
 
-    
-
     def next_generation(self) -> None:
         print(self.state)
         if self.state == States.NEXT_GEN:
@@ -293,7 +304,6 @@ class MainWindow(QMainWindow):
             else:
                 raise Exception('Invalid selection_type: "{}"'.format(get_ga_constant('selection_type')))
 
-            self._increment_generation()
             self._offset_into_population = 0
             self._total_individuals_ran = 0  # Reset back to the first individual
 
@@ -305,8 +315,21 @@ class MainWindow(QMainWindow):
             for individual in self.population.individuals:
                 individual.calculate_fitness()
 
+            # Should we save the pop
+            if args.save_pop:
+                path = os.path.join(args.save_pop, 'pop_gen{}'.format(self.current_generation))
+                if os.path.exists(path):
+                    raise Exception('{} already exists. This would overwrite everything, choose a different folder or delete it and try again'.format(path))
+                os.makedirs(path)
+                save_population(path, self.population, settings.settings)
+            # Save best? 
+            if args.save_best:
+                save_car(args.save_best, 'car_{}'.format(self.current_generation), self.population.fittest_individual, settings.settings)
+
             self._set_previous_gen_avg_fitness()
             self._set_previous_gen_num_winners()
+            self._increment_generation()
+
 
             # Grab the best individual and compare to best fitness
             best_ind = self.population.fittest_individual
@@ -436,6 +459,7 @@ class MainWindow(QMainWindow):
                     world = self.world
                     wheel_radii = individual.wheel_radii
                     wheel_densities = individual.wheel_densities
+                    wheel_motor_speeds = individual.wheel_motor_speeds
                     chassis_vertices = individual.chassis_vertices
                     chassis_densities = individual.chassis_densities
                     winning_tile = individual.winning_tile
@@ -445,8 +469,8 @@ class MainWindow(QMainWindow):
                     # If the individual is still alive, they survive
                     if lifespan > 0:
                         car = Car(world, 
-                                wheel_radii, wheel_densities,         # Wheel
-                                chassis_vertices, chassis_densities,  # Chassis
+                                wheel_radii, wheel_densities, wheel_motor_speeds,       # Wheel
+                                chassis_vertices, chassis_densities,                    # Chassis
                                 winning_tile, lowest_y_pos,
                                 lifespan)
                         next_pop.append(car)
@@ -580,6 +604,13 @@ class MainWindow(QMainWindow):
             self.game_window.pan_camera_to_leader()
         # If there is not a leader then the generation is over OR the next group of N need to run
         if not self.leader:
+            # Replay state
+            if self.state == States.REPLAY:
+                name = 'car_{}'.format(self.current_generation)
+                car = load_car(self.world, self.winning_tile, self.lowest_y_pos, np.inf, args.replay_from_folder, name)
+                self.cars = [car]
+                self.current_generation += 1
+                return
             # Are we still in the process of just random creation?
             if self.state in (States.FIRST_GEN, States.FIRST_GEN_IN_PROGRESS):
                 print('init first gen', self.state)
@@ -695,9 +726,40 @@ class MainWindow(QMainWindow):
         elif key == Qt.Key_E:
             scale = default_scale
 
+def save_population(population_folder: str, population: Population, settings: Dict[str, Any]) -> None:
+    for i, car in enumerate(population.individuals):
+        name = 'car_{}'.format(i)
+        save_car(population, name, car, settings)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='PyGenoCar V1.0')
+    # Save
+    parser.add_argument('--save-best', dest='save_best', nargs=1, type=str, help='destination folder to save best individiuals after each gen')
+    parser.add_argument('--save-pop', dest='save_pop', nargs=1, type=str, help='destination folder to save population after each gen')
+    parser.add_argument('--save-pop-on-close', dest='save_pop_on_close', nargs=1, type=str, help='destination to save the population when program exits')
+
+    # Replay @NOTE: Only supports replaying the best individual. Not a list of populations.
+    parser.add_argument('--replay-from-folder', dest='replay_from_folder', nargs=1, type=str, help='destination to replay individuals from')
+
+    args = parser.parse_args()
+    return args
+
 
 if __name__ == "__main__":
+    global args
+    args = parse_args()
+    print(args)
+    print(dir(args))
+    replay = False
+    if args.replay_from_folder:
+        if 'settings.pkl' not in os.listdir(args.replay_from_folder):
+            raise Exception('settings.pkl not found within {}'.format(args.replay_from_folder))
+        settings_path = os.path.join(args.replay_from_folder, 'settings.pkl')
+        settings.settings = pickle.load(settings_path)
+        replay = True
+
+
     world = b2World(get_boxcar_constant('gravity'))
     App = QApplication(sys.argv)
-    window = MainWindow(world)
+    window = MainWindow(world, replay)
     sys.exit(App.exec_())
