@@ -736,13 +736,25 @@ class MainWindow(QMainWindow):
         elif key == Qt.Key_E:
             scale = default_scale
 
+    def closeEvent(self, event):
+        global args
+        if args.save_pop_on_close:
+            save_population(args.save_pop_on_close, self.population, settings.settings)
+
+
 def save_population(population_folder: str, population: Population, settings: Dict[str, Any]) -> None:
     """
     Saves all cars in the population
     """
+    # @NOTE: self.population.individuals is not the same as self.cars
+    # self.cars are the cars that run at a given time for the BATCH
+    # self.population.individuals is the ENTIRE population of chromosomes.
+    # This will not save anything the first generation since those are just random cars and nothing has
+    # been added to the population yet.
     for i, car in enumerate(population.individuals):
         name = 'car_{}'.format(i)
-        save_car(population, name, car, settings)
+        print('saving {} to {}'.format(name, population_folder))
+        save_car(population_folder, name, car, settings)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='PyGenoCar V1.0')
