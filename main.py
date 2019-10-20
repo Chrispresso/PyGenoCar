@@ -9,7 +9,7 @@ from enum import Enum, unique
 from Box2D import *
 import random
 from boxcar.floor import Floor
-from boxcar.car import Car, create_random_car, clip_chromosome, save_car, load_car, smart_clip
+from boxcar.car import Car, create_random_car, save_car, load_car, smart_clip
 from genetic_algorithm.population import Population
 from genetic_algorithm.individual import Individual
 from genetic_algorithm.crossover import simulated_binary_crossover as SBX
@@ -20,14 +20,11 @@ from settings import get_boxcar_constant, get_ga_constant
 import settings
 from windows import SettingsWindow, StatsWindow, draw_border
 import os
-
 import sys
 import time
-from copy import deepcopy
 import numpy as np
 import math
 
-g_best_car = None
 
 ## Constants ##
 scale = 70
@@ -46,6 +43,9 @@ class States(Enum):
 
 
 def draw_circle(painter: QPainter, body: b2Body, local=False) -> None:
+    """
+    Draws a circle with the given painter.
+    """
     for fixture in body.fixtures:
         if isinstance(fixture.shape, b2CircleShape):
             # Set the color of the circle to be based off wheel density
@@ -76,6 +76,9 @@ def draw_circle(painter: QPainter, body: b2Body, local=False) -> None:
 
 
 def draw_polygon(painter: QPainter, body: b2Body, poly_type: str = '', adjust_painter: bool = True, local=False) -> None:
+    """
+    Draws a polygon with the given painter. Uses poly_type for determining the fill of the polygon.
+    """
     if adjust_painter:
         _set_painter_clear(painter, Qt.black)
 
@@ -110,7 +113,7 @@ def draw_polygon(painter: QPainter, body: b2Body, poly_type: str = '', adjust_pa
 
                 qp0 = QPointF(*p0)
                 qp1 = QPointF(*p1)
-                # painter.drawLine(qp0, qp1)
+
                 poly.append(qp0)
                 poly.append(qp1)
             if poly:
@@ -145,7 +148,7 @@ class GameWindow(QWidget):
         self.leader: Car = leader  # Track the leader
         self.best_car_ever = None
         self.cars = cars
-        self.manual_control = False
+        self.manual_control = False  # W,A,S,D, Z,C, E,R
 
         # Camera stuff
         self._camera = b2Vec2()
@@ -511,6 +514,7 @@ class MainWindow(QMainWindow):
                 self._mutation(c1_chromosome)
                 self._mutation(c2_chromosome)
 
+                # Don't let the chassis density become <=0. It is bad
                 smart_clip(c1_chromosome)
                 smart_clip(c2_chromosome)
 
@@ -526,11 +530,16 @@ class MainWindow(QMainWindow):
         return next_pop
     
     def _increment_generation(self) -> None:
+        """
+        Increments the generation and sets the label
+        """
         self.current_generation += 1
         self.stats_window.generation.setText("<font color='red'>" + str(self.current_generation + 1) + '</font>')
 
     def _set_first_gen(self) -> None:
-        print(self.state)
+        """
+        Sets the first generation, i.e. random cars
+        """
         # Create the floor if FIRST_GEN, but not if it's in progress
         if self.state == States.FIRST_GEN:
             self.floor = Floor(self.world)
@@ -563,6 +572,9 @@ class MainWindow(QMainWindow):
             self.state = States.NEXT_GEN
 
     def _set_number_of_cars_alive(self) -> None:
+        """
+        Set the number of cars alive on the screen label
+        """
         total_for_gen = get_ga_constant('num_parents')
         if self.current_generation > 0:
             total_for_gen = self._next_gen_size
@@ -571,10 +583,16 @@ class MainWindow(QMainWindow):
         self.stats_window.current_num_alive.setText(text)
 
     def _set_max_fitness(self) -> None:
+        """
+        Sets the max fitness label
+        """
         self.stats_window.best_fitness.setText(str(int(self.max_fitness)))
 
 
     def _update(self) -> None:
+        """
+        Called once every 1/FPS to update everything
+        """
         for car in self.cars:
             if not car.is_alive:
                 continue
@@ -614,7 +632,6 @@ class MainWindow(QMainWindow):
                 return
             # Are we still in the process of just random creation?
             if self.state in (States.FIRST_GEN, States.FIRST_GEN_IN_PROGRESS):
-                print('init first gen', self.state)
                 self._set_first_gen()
                 self.game_window.leader = self.leader
                 self.game_window.cars = self.cars
@@ -626,14 +643,8 @@ class MainWindow(QMainWindow):
             # Next N individuals need to run
             # We already have a population defined and we need to create N cars to run
             elif self.state == States.NEXT_GEN_CREATE_OFFSPRING:
-                print(self.state)
-            # if (self.current_generation == 0 and self._total_individuals_ran < get_ga_constant('num_parents')) or\
-            #    (self.current_generation > 0 and self._total_individuals_ran < self._next_gen_size):
-                # self.cars = self.all_cars[self._offset_into_population: self._offset_into_population + get_boxcar_constant('run_at_a_time')]
                 num_create = min(self._next_gen_size - self._total_individuals_ran, get_boxcar_constant('run_at_a_time'))
-                # if num_create <= 0:
-                #     self.state = States.NEXT_GEN
-                #     return
+
                 self.cars = self._create_num_offspring(num_create)
                 self.batch_size = len(self.cars)
                 self.num_cars_alive = len(self.cars)
@@ -661,21 +672,14 @@ class MainWindow(QMainWindow):
 
         # Update windows
         self.game_window._update()
-        # if self._are_all_cars_dead():
-        #     print('eeeeeeeeeek')
 
         # Step
         self.world.Step(1./FPS, 10, 6)
 
-
-    def _are_all_cars_dead(self) -> bool:
-        for car in self.cars:
-            if car.is_alive:
-                return False
-
-        return True
-
     def _crossover(self, p1_chromosome: np.ndarray, p2_chromosome: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Perform crossover between two parent chromosomes and return TWO child chromosomes
+        """
         rand_crossover = random.random()
         crossover_bucket = np.digitize(rand_crossover, self._crossover_bins)
 
@@ -688,6 +692,9 @@ class MainWindow(QMainWindow):
         return c1_chromosome, c2_chromosome
 
     def _mutation(self, chromosome: np.ndarray) -> None:
+        """
+        Randomly decide if we should perform mutation on a gene within the chromosome. This is done in place
+        """
         rand_mutation = random.random()
         mutation_bucket = np.digitize(rand_mutation, self._mutation_bins)
 
@@ -706,8 +713,10 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, event):
         global scale, default_scale
         key = event.key()
+        # Zoom in
         if key == Qt.Key_C:
             scale += 1
+        # Zoom out
         elif key == Qt.Key_Z:
             scale -= 1
             scale = max(scale, 1)
@@ -722,12 +731,16 @@ class MainWindow(QMainWindow):
             elif key == Qt.Key_D:
                 direction = 'r'
             self.game_window.pan_camera_in_direction(direction, 5)
+        # Reset to normal control
         elif key == Qt.Key_R:
             self.manual_control = False
         elif key == Qt.Key_E:
             scale = default_scale
 
 def save_population(population_folder: str, population: Population, settings: Dict[str, Any]) -> None:
+    """
+    Saves all cars in the population
+    """
     for i, car in enumerate(population.individuals):
         name = 'car_{}'.format(i)
         save_car(population, name, car, settings)
@@ -749,9 +762,6 @@ def parse_args():
 if __name__ == "__main__":
     global args
     args = parse_args()
-    print(args)
-    print(dir(args))
-    print(args.save_best)
     replay = False
     if args.replay_from_folder:
         if 'settings.pkl' not in os.listdir(args.replay_from_folder):

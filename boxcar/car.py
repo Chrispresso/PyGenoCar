@@ -424,6 +424,15 @@ def _create_chassis_part(body: b2Body, point0: b2Vec2, point1: b2Vec2, density: 
     fixture_def.shape.vertices = vertices
     body.CreateFixture(fixture_def)
 
+def smart_clip(chromosome: np.ndarray) -> None:
+    """
+    Clips the chassis so you can't have 0 density.
+    Bad things happen when you give a car 0 density...
+    """
+    np.clip(chromosome[genes['chassis_densities'], :],
+            0.0001,
+            np.inf,
+            out=chromosome[genes['chassis_densities'], :])
 
 def save_car(population_folder: str, individual_name: str, car: Car, settings: Dict[str, Any]) -> None:
     """

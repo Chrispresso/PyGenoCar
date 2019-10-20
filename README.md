@@ -1,6 +1,43 @@
 # PyGenoCar - V1.0
+Welcome to PyGenoCar - The world in which cars are made using Genetic Algorithms!<br>
+There are a number of things you may care about here including installation and settings. Feel free to mess around with the settings and see how the cars change over the generations!<br>
 
-# Setings
+# Installation
+This requires Python3.6+<br><br>
+The installation here might seem like a lot of work, but I promise it isn't. I cannot include everything into a `requirements.txt` since `Box2D` is a bit more work than that.  If you want the installation instructions from the `box2d` repo, head over to https://github.com/jonasschneider/box2d-py/blob/master/INSTALL.md. Otherwise just read below for what I did:<br>
+## Windows:
+1. `git clone https://github.com/pybox2d/pybox2d` (optional: ` -b 2.3.2`)
+2. Download SWIG. Easiest way is to use prebuilt executables from: https://sourceforge.net/projects/swig/files/swigwin/swigwin-4.0.1/swigwin-4.0.1.zip/download?use_mirror=cfhcable.
+3. Unzip and add `swigwin-4.0.1` to your `System Variables PATH` (environment variable).
+4. `cd /path/to/pybox2d/clone/location`
+5. `python setup.py build`
+6. `python setup.py install`
+## Linux
+1. `sudo apt-get install swig`
+2. `git clone https://github.com/pybox2d/pybox2d` (optional: ` -b 2.3.2`)
+3. `cd /path/to/pybox2d/clone/location`
+4. `python setup.py build`
+5. `sudo python setup.py install`
+
+To test open a new Python terminal:<br>
+1. `import Box2D`
+2. `Box2D.__version__`
+
+If everything goes right, you should see a version printed.<br>
+You can now run `pip3 install -r requirements.txt` to finish installing the below requirements:
+1. numpy
+2. pyqt5
+3. dill
+
+# Controls<br>
+It might seem weird to have controls for a Genetic Algorithm, but the controls are for being able to move the camera around to get a better idea of the environment. Below are the current supported controls and their functions:<br>
+<ul><i><b>Z</b></i>: Zoom camera out</ul>
+<ul><i><b>C</b></i>: Zoom camera in</ul>
+<ul><i><b>W, A, S, D</b></i>: Pan camera up, left, down and right, respectively</ul> 
+<ul><i><b>R</b></i>: [R]eset to normal control, i.e. follow the leading car</ul>
+<ul><i><b>E</b></i>: Goes back to default zoom (scal[e]). E is next to R....</ul> 
+
+# Settings
 This is broken up into two subsections: boxcar and ga. Boxcar consists of all settings that are used in the creation of cars, the world, and anything related to physics. Genetic Algorithm (ga) consists of all settings used in the overall control for the GA.
 
 It is important to note that units are in MKS (meters, kilograms, seconds). If you change parameters, keep that in mind. Also keep in mind that Box2D, the physics engine used here, is meant for smaller objects. If you create a wheel that has a 50m radius, it might work, but it might not model the best.

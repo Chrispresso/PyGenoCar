@@ -1,0 +1,3 @@
+numpy
+pyqt5
+dill
