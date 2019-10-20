@@ -30,9 +30,6 @@ class Car(Individual):
         self.world = world
         self.wheel_radii = wheel_radii
         self.wheel_densities = wheel_densities
-        # self.wheel_motor_speeds = wheel_motor_speeds
-        # self.wheels = wheels
-        # self.wheel_vertices = wheel_vertices
         self.chassis_vertices = chassis_vertices
         self.chassis_densities = chassis_densities
         self.winning_tile = winning_tile
@@ -117,6 +114,9 @@ class Car(Individual):
     
 
     def _init_ga_settings(self) -> None:
+        """
+        Basic initialization of the chromosome
+        """
         # Initialize the chromosome
         self._init_chromosome()
 
@@ -124,20 +124,18 @@ class Car(Individual):
         """
         Initializes the chromosome. Only needs to be call
         """
-        self._chromosome = np.empty((len(genes.keys()), 8))
+        self._chromosome = np.empty((len(genes.keys()), 8))  # Genes x vertices
         self.encode_chromosome()
-
-    def _set_car_from_values(self) -> None:
-        """
-        Set the car to be defined from things like:
-        self.chassis_vertices
-        self.
-        """
-        pass
 
     @classmethod
     def create_car_from_chromosome(cls, world: b2World, winning_tile: b2Vec2, lowest_y_pos: float,
                                    lifespan: Union[int, float], chromosome: np.ndarray) -> 'Car':
+        """
+        Creates a car from a chromosome. This is helpful in two areas:
+        1. You can just keep a bunch of chromosome references and create a car when you need.
+        This helps a lot in memory management for Box2D and performance.
+        2. You can replay from chromosomes you save.
+        """
         car = Car(world, 
                   None, None, # None,  # Wheel stuff set to None
                   None, None,        # Chassis stuff set to None
@@ -147,6 +145,9 @@ class Car(Individual):
         return car
 
     def calculate_fitness(self) -> None:
+        """
+        Calculate the fitness of an individual at the end of a generation.
+        """
         func = get_ga_constant('fitness_function')
         fitness = func(max(self.max_position, 0.0),
                        self.num_wheels,
@@ -164,6 +165,9 @@ class Car(Individual):
         self._fitness = val
 
     def encode_chromosome(self) -> None:
+        """
+        Encodes (sets the chromosome) from individual values
+        """
         #### Chassis stuff
         self._chromosome[genes['chassis_vertices_x'], :] = np.array([vertex.x for vertex in self.chassis_vertices])
         self._chromosome[genes['chassis_vertices_y'], :] = np.array([vertex.y for vertex in self.chassis_vertices])
@@ -175,6 +179,9 @@ class Car(Individual):
         # self._chromosome[genes['wheel_motor_speeds'], :] = np.array([motor_speed for motor_speed in self.wheel_motor_speeds])
 
     def decode_chromosome(self) -> None:
+        """
+        Decodes (gets the values) from the chromosome.
+        """
         # be a complete polygon if those begin changing drastically
         # If a chassis already exists, then we are going to delete it
         if self.chassis:
@@ -205,7 +212,6 @@ class Car(Individual):
         return self._chromosome
 
 
-    
     def clone(self):
         world = self.world
         wheels = []
@@ -226,6 +232,10 @@ class Car(Individual):
                  winning_tile, lowest_y_pos, True)
 
     def update(self) -> bool:
+        """
+        Determines where the car currently is in comparison to it's goal.
+        Has the car died? Did it win? Etc.
+        """
         if not self.is_alive:
             return False
 
@@ -261,6 +271,10 @@ class Car(Individual):
         return True
 
     def _destroy(self) -> None:
+        """
+        Cleans up memory from Box2D.
+        If you are familiar with C, think of this as "free"
+        """
         self.world.DestroyBody(self.chassis)
         for wheel in self.wheels:
             self.world.DestroyBody(wheel.body)
@@ -287,6 +301,9 @@ class Car(Individual):
 
 
 def create_random_car(world: b2World, winning_tile: b2Vec2, lowest_y_pos: float):
+    """
+    Creates a random car based off the values found in settings.py under the settings dictionary
+    """
     # Create a number of random wheels.
     # Each wheel will have a random radius and density
     num_wheels = random.randint(get_boxcar_constant('min_num_wheels'), get_boxcar_constant('max_num_wheels') + 1)
@@ -332,6 +349,7 @@ def create_random_car(world: b2World, winning_tile: b2Vec2, lowest_y_pos: float)
     chassis_vertices.append(b2Vec2(0, -random.uniform(min_chassis_axis, max_chassis_axis)))
     chassis_vertices.append(b2Vec2(random.uniform(min_chassis_axis, max_chassis_axis), -random.uniform(min_chassis_axis, max_chassis_axis)))
 
+    # Now t hat we have our chassis vertices, we need to get a random density for them as well
     densities = []
     for i in range(8):
         densities.append(random.uniform(get_boxcar_constant('min_chassis_density'), get_boxcar_constant('max_chassis_density')))
@@ -342,53 +360,6 @@ def create_random_car(world: b2World, winning_tile: b2Vec2, lowest_y_pos: float)
                chassis_vertices, densities, 
                winning_tile, lowest_y_pos, 
                lifespan=get_ga_constant('lifespan'))
-
-def smart_clip(chromosome: np.ndarray) -> None:
-    np.clip(chromosome[genes['chassis_densities'], :],
-            0.0001,
-            np.inf,
-            out=chromosome[genes['chassis_densities'], :])
-
-def clip_chromosome(chromosome: np.ndarray) -> None:
-    """
-    Clips the chromosome values to be  in between min/max values defined in settings.py
-    """
-    #### Chassis 
-    # Row 0 and 1 are chassis vertices
-    np.clip(chromosome[:2, :], get_boxcar_constant('min_chassis_axis'), get_boxcar_constant('max_chassis_axis'), out=chromosome[:2, :])
-    # Row 2 is chassis density
-    np.clip(chromosome[2, :], get_boxcar_constant('min_chassis_density'), get_boxcar_constant('max_chassis_density'), out=chromosome[2, :])
-
-    #### Wheel - no need to clip bottom portion
-    # Row 3 is wheel radius
-    np.clip(chromosome[3, :], -np.inf, get_boxcar_constant('max_wheel_radius'), out=chromosome[3, :])
-    # Row 4 is wheel density
-    np.clip(chromosome[4, :], -np.inf, get_boxcar_constant('max_wheel_density'), out=chromosome[4, :])
-
-def set_chromosome_bounding_vertices_to_zero(chromosome: np.ndarray) -> None:
-    """
-    Forcefully sets the bounding vertices to make a grid. Since V0, V2, V3 and V6 are the bounding vertices,
-    they each have a component that start at 0. Either their x or y value is at 0. This ensures that even 
-    through mutation/crossover, those components remain at 0.
-    #@TODO: Test if this is necessary
-    """
-    #### Set the x-component of V2 and V6 to 0
-    # Row 0 is x-component for chassis vertices
-    chromosome[0, (2, 6)] = 0.0
-
-    #### Set the y-component of V0 and V4 to 0
-    # Row 1 is y-component for chassis vertices
-    chromosome[1, (0, 4)] = 0.0
-
-    
-
-def clip_chromosome_to_zero(chromosome: np.ndarray) -> None:
-    """
-    Clips the chromosome so the minimum value is 0.0 for everything except wheel radius/density.
-    Wheel radius/density can be negative since they will just be ignored anyway during the creation of wheels.
-    """
-    # radius/density are row 3 and 4
-    np.clip(chromosome[:3, :], 0.0, np.inf, out=chromosome[:3, :])
 
 def create_random_chassis(world: b2World) -> b2Body:
     min_chassis_axis = get_boxcar_constant('min_chassis_axis')
@@ -412,6 +383,9 @@ def create_random_chassis(world: b2World) -> b2Body:
 
 
 def create_chassis(world: b2World, vertices: List[b2Vec2], densities: List[float]) -> b2Body:
+    """
+    Creates a chassis to be the body of the car.
+    """
     if len(vertices) != len(densities):
         raise Exception('vertices and densities must be same length')
 
@@ -448,11 +422,15 @@ def _create_chassis_part(body: b2Body, point0: b2Vec2, point1: b2Vec2, density: 
     fixture_def.restitution = 0.2
     fixture_def.groupIndex = -1
     fixture_def.shape.vertices = vertices
-    #@TODO: sometimes rotational_intertia be is <0... need to fix that
     body.CreateFixture(fixture_def)
 
 
 def save_car(population_folder: str, individual_name: str, car: Car, settings: Dict[str, Any]) -> None:
+    """
+    Save a car. This saves one and sometimes two things:
+    1. Saves the chromosome representation of the individual
+    2. Saves the settings. This is only done once.
+    """
     # Make the population folder if it doesn't exist
     if not os.path.exists(population_folder):
         os.makedirs(population_folder)
@@ -470,6 +448,9 @@ def load_car(world: b2World,
              winning_tile: b2Vec2, lowest_y: float,
              lifespan: Union[int, float],
              population_folder: str, individual_name: str) -> Car:
+    """
+    Loads a car from a folder. This loads the chromosome.
+    """
     chromosome = np.load(os.path.join(population_folder, individual_name))
     car = Car.create_car_from_chromosome(world, winning_tile, lowest_y, lifespan)
     return car

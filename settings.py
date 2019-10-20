@@ -9,10 +9,10 @@ __settings_cache = {}
 # The settings specific to the boxcar
 settings['boxcar'] = {
     ### Floor ###
-    'floor_tile_height': (.15, float),
-    'floor_tile_width': (1.5, float),
+    'floor_tile_height': (.15, float),  # .15
+    'floor_tile_width': (.75, float),  # 1.5
     'max_floor_tiles': (200, int),
-    'floor_creation_type': ('gaussian', str),
+    'floor_creation_type': ('jagged', str),
         ### Floor - Gaussian random. Used when 'floor_creation_type' == 'gaussian' ###
         # Only needed if using gaussian random floor creation
         'tile_angle_mu': (8, float),
@@ -30,10 +30,10 @@ settings['boxcar'] = {
         'ramp_increasing_angle': (1.2, (float, type(None))),
         'ramp_start_angle': (1, (float, type(None))),
         'ramp_increasing_type': ('multiply', (str, type(None))),
-        'ramp_max_angle': (70, float),
+        'ramp_max_angle': (55, float),
         
         'ramp_approach_distance': (10, float),
-        'ramp_distance_needed_to_jump': (5, float),
+        'ramp_distance_needed_to_jump': (10, float),
 
         ### Jagged - ramp. Used when 'floor_creation_type' == 'jagged' ###
         # Only needed if using jaged floor creation
@@ -53,7 +53,7 @@ settings['boxcar'] = {
     'min_wheel_density': (40.0, float),
     'max_wheel_density': (200.0, float),
     'min_num_wheels': (0, int),
-    'max_num_wheels': (3, int),
+    'max_num_wheels': (2, int),
     'min_wheel_radius': (0.1, float),
     'max_wheel_radius': (0.5, float),
 
@@ -96,7 +96,7 @@ settings['ga'] = {
                          (num_wheels ** 5) -
                          ((total_chassis_volume * 5) ** 3) -
                          ((total_wheels_volume * 10) ** 5) -
-                         frames,
+                         (frames),
                          type(lambda x: x)
     ),
 }

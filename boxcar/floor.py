@@ -7,6 +7,9 @@ import numpy as np
 
 
 def rotate_floor_tile(coords: List[b2Vec2], center: b2Vec2, angle: float) -> List[b2Vec2]:
+    """
+    Rotate a given floor tile by some number of degrees.
+    """
     rads = angle * math.pi / 180.0  # Degree to radians
     new_coords: List[b2Vec2] = []
     for coord in coords:
@@ -18,6 +21,9 @@ def rotate_floor_tile(coords: List[b2Vec2], center: b2Vec2, angle: float) -> Lis
     return new_coords
 
 def create_floor_tile(world: b2World, position: b2Vec2, angle: float) -> b2Body:
+    """
+    Create a floor tile at some angle
+    """
     width = get_boxcar_constant('floor_tile_width')
     height = get_boxcar_constant('floor_tile_height')
 
@@ -52,10 +58,10 @@ def create_floor_tile(world: b2World, position: b2Vec2, angle: float) -> b2Body:
 class Floor(object):
     def __init__(self, world: b2World, seed=0, num_tiles = get_boxcar_constant('max_floor_tiles')):
         self.world = world
-        self.seed = seed
+        self.seed = seed  # @TODO: Add this to the setting
         self.num_tiles = num_tiles
         self.floor_tiles: List[b2Body] = []
-        self.rand = np.random.RandomState(self.seed)
+        self.rand = np.random.RandomState(self.seed)  # @NOTE: the floor has it's own random that it references.
 
         self.floor_creation_type = get_boxcar_constant('floor_creation_type').lower()
         if self.floor_creation_type == 'gaussian':
@@ -72,32 +78,25 @@ class Floor(object):
                 if coord.y < self.lowest_y:
                     self.lowest_y = coord.y
 
-
-        # self.winning_tile = None
-
-    def _generate_floor(self):
-        tile_position = b2Vec2(-5, 0)
-        for i in range(self.num_tiles):
-            # floor_tile = create_floor_tile(self.world, tile_position, (self.rand.random()*1.5*2 - 1.5) * 1.5*i/self.num_tiles)
-            floor_tile = create_floor_tile(self.world, tile_position, 0)  # i*3
-            self.floor_tiles.append(floor_tile)
-            # Get the world coordinate of the bottom-right of the box and set that as the next position to start from.
-            # The position of the new box will be defined from bottom-left, so this stacks them next to each other
-            world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
-            tile_position = world_coord
-
     def destroy(self):
+        """
+        Destroy the floor.
+        If you're familiar with C, think of this as "free"
+        """
         for tile in self.floor_tiles:
             self.world.DestroyBody(tile)
 
     def _generate_gaussian_random_floor(self):
+        """
+        Helper method for generating a gaussian random floor
+        """
         threshold = get_boxcar_constant('tile_gaussian_threshold')
         denominator = get_boxcar_constant('tile_gaussian_denominator')
         mu = get_boxcar_constant('tile_angle_mu')
         std = get_boxcar_constant('tile_angle_std')
 
         tile_position = b2Vec2(-5, 0)
-        #@TODO: Add equation explaining this
+        #@NOTE: Look in README.md for explanation of the below equation
         for i in range(self.num_tiles):
             numerator = min(i, threshold)
             scale = min(float(numerator) / denominator, 1.0)
@@ -117,6 +116,9 @@ class Floor(object):
 
             
     def _generate_ramp(self):
+        """
+        Helper method for generating a ramp
+        """
         const_angle = get_boxcar_constant('ramp_constant_angle')
         approach_tiles_needed = get_boxcar_constant('ramp_approach_distance') / get_boxcar_constant('floor_tile_width')
         approach_tiles_needed = math.ceil(approach_tiles_needed)
@@ -184,6 +186,9 @@ class Floor(object):
         self._create_stopping_zone(tile_position)
 
     def _create_jagged_floor(self):
+        """
+        Helper method for creating a jagged floor.
+        """
         tile_position = b2Vec2(-5, 0)
         increasing_angle = get_boxcar_constant('jagged_increasing_angle')
         decreasing_angle = -get_boxcar_constant('jagged_decreasing_angle')
@@ -192,17 +197,21 @@ class Floor(object):
             angle = increasing_angle if i % 2 == 1 else decreasing_angle
             floor_tile = create_floor_tile(self.world, tile_position, angle)
             self.floor_tiles.append(floor_tile)
+
+            # You can blame this part of B2D. For Python it rearranges the vertices that I reference...
             t = 1
             if angle < 0:
                 t =0
             
-            #@TODO: fix this
             world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[t])
             tile_position = world_coord
 
         self._create_stopping_zone(tile_position)
 
     def _create_stopping_zone(self, tile_position: b2Vec2) -> None:
+        """
+        Creates a stopping zone so that the cars have a flat surface at the end of whatever track they were on.
+        """
         max_car_size = (get_boxcar_constant('max_chassis_axis') * 2.0) + (2.0 * get_boxcar_constant('max_wheel_radius'))
         tile_width = get_boxcar_constant('floor_tile_width')
         tiles_needed_before_wall = math.ceil(max_car_size / tile_width)
@@ -220,12 +229,15 @@ class Floor(object):
             if i == tiles_needed_before_wall:
                 self.winning_tile = self.floor_tiles[-1]
 
+        # @NOTE: If you really want you can add the below back in. I'm not adding it to settings, but it is funny
+        # to watch the cars develop strategies to try to climb the wall.
+
         # Create wall
-        num_wall_tiles = math.ceil(max_car_size * 2.0 / tile_width)
-        for i in range(num_wall_tiles):
-            floor_tile = create_floor_tile(self.world, tile_position, 90)
-            self.floor_tiles.append(floor_tile)
-            world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
-            # Adjust the tile to the left a bit so they overlap and form a wall
-            tile_position = b2Vec2(world_coord.x - get_boxcar_constant('floor_tile_height'), world_coord.y)
+        # num_wall_tiles = math.ceil(max_car_size * 2.0 / tile_width)
+        # for i in range(num_wall_tiles):
+        #     floor_tile = create_floor_tile(self.world, tile_position, 90)
+        #     self.floor_tiles.append(floor_tile)
+        #     world_coord = floor_tile.GetWorldPoint(floor_tile.fixtures[0].shape.vertices[1])
+        #     # Adjust the tile to the left a bit so they overlap and form a wall
+        #     tile_position = b2Vec2(world_coord.x - get_boxcar_constant('floor_tile_height'), world_coord.y)
     
