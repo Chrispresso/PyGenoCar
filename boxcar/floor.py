@@ -1,5 +1,4 @@
 from Box2D import *
-from .base import BoxCarObject
 from typing import List
 from settings import get_boxcar_constant
 import math
