@@ -180,8 +180,6 @@ class GameWindow(QWidget):
         """
         self.update()
 
-    
-
 
     def _draw_car(self, painter: QPainter, car: Car):
         """
@@ -271,8 +269,10 @@ class MainWindow(QMainWindow):
             raise Exception('Selection type "{}" is invalid'.format(get_ga_constant('selection_type')))
 
         if self.replay:
+            global args
             self.floor = Floor(self.world)
             self.state = States.REPLAY
+            self.num_replay_inds = len([x for x in os.listdir(args.replay_from_folder) if x.startswith('car_')])
         else:
             self._set_first_gen()
         # self.population = Population(self.cars)
@@ -295,7 +295,6 @@ class MainWindow(QMainWindow):
         self._timer.start(1000//get_boxcar_constant('fps'))
 
     def next_generation(self) -> None:
-        print(self.state)
         if self.state == States.NEXT_GEN:
             self.stats_window.pop_size.setText(str(self._next_gen_size))
             self.current_batch = 0
@@ -310,7 +309,6 @@ class MainWindow(QMainWindow):
             self._offset_into_population = 0
             self._total_individuals_ran = 0  # Reset back to the first individual
 
-            print('===== ' + str(len(self._next_pop)))
             self.population.individuals = self._next_pop
             self._next_pop = []  # Reset the next pop
 
@@ -336,7 +334,6 @@ class MainWindow(QMainWindow):
 
             # Grab the best individual and compare to best fitness
             best_ind = self.population.fittest_individual
-            print(best_ind.chassis_volume)
             if best_ind.fitness > self.max_fitness:
                 self.max_fitness = best_ind.fitness
                 self._set_max_fitness()
@@ -450,10 +447,6 @@ class MainWindow(QMainWindow):
         # to grab those first before we create new ones
         # if get_ga_constant('selection_type').lower() == 'plus' and len(self._next_pop) < get_ga_constant('num_parents'):
         if self.state == States.NEXT_GEN_COPY_PARENTS_OVER:
-            print('copying over')
-            print(len(self.population.individuals))
-            print('{}:{}'.format(self._offset_into_population, self._offset_into_population +number_of_offspring))
-            print('length of ', len(self.population.individuals))
             # Select the subset of the individuals to bring to the next gen
             increment = 0  # How much did the offset increment by
             for idx in range(self._offset_into_population, len(self.population.individuals)):
@@ -483,13 +476,12 @@ class MainWindow(QMainWindow):
                         if len(next_pop) == number_of_offspring:
                             break
                     else:
-                        print('***dead')
+                        print("Oh dear, you're dead")
             # Increment offset for the next time
             self._offset_into_population += increment
             # If there weren't enough parents that made it to the new generation, we just accept it and move on.
             # Since the lifespan could have reached 0, you are not guaranteed to always have the same number of parents copied over.
             if self._offset_into_population >= len(self.population.individuals):
-                print('setting state early')
                 self.state = States.NEXT_GEN_CREATE_OFFSPRING
         # Otherwise just perform crossover with the current population and produce num_of_offspring
         # @NOTE: The state, even if we got here through State.NEXT_GEN or State.NEXT_GEN_COPY_PARENTS_OVER is now
@@ -625,10 +617,17 @@ class MainWindow(QMainWindow):
         if not self.leader:
             # Replay state
             if self.state == States.REPLAY:
-                name = 'car_{}'.format(self.current_generation)
-                car = load_car(self.world, self.winning_tile, self.lowest_y_pos, np.inf, args.replay_from_folder, name)
+                name = 'car_{}.npy'.format(self.current_generation)
+                car = load_car(self.world, self.floor.winning_tile, self.floor.lowest_y, np.inf, args.replay_from_folder, name)
                 self.cars = [car]
+                self.game_window.cars = self.cars
+                self.leader = self.find_new_leader()
+                self.game_window.leader = self.leader
                 self.current_generation += 1
+                txt = 'Replay {}/{}'.format(self.current_generation, self.num_replay_inds)
+                self.stats_window.generation.setText("<font color='red'>Replay</font>")
+                self.stats_window.pop_size.setText("<font color='red'>Replay</font>")
+                self.stats_window.current_num_alive.setText("<font color='red'>" + txt + '</font>')
                 return
             # Are we still in the process of just random creation?
             if self.state in (States.FIRST_GEN, States.FIRST_GEN_IN_PROGRESS):
@@ -767,7 +766,8 @@ if __name__ == "__main__":
         if 'settings.pkl' not in os.listdir(args.replay_from_folder):
             raise Exception('settings.pkl not found within {}'.format(args.replay_from_folder))
         settings_path = os.path.join(args.replay_from_folder, 'settings.pkl')
-        settings.settings = pickle.load(settings_path)
+        with open(settings_path, 'rb') as f:
+            settings.settings = pickle.load(f)
         replay = True
 
 

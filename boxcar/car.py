@@ -461,5 +461,5 @@ def load_car(world: b2World,
     Loads a car from a folder. This loads the chromosome.
     """
     chromosome = np.load(os.path.join(population_folder, individual_name))
-    car = Car.create_car_from_chromosome(world, winning_tile, lowest_y, lifespan)
+    car = Car.create_car_from_chromosome(world, winning_tile, lowest_y, lifespan, chromosome)
     return car

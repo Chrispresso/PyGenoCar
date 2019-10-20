@@ -1,6 +1,13 @@
 # PyGenoCar - V1.0
 Welcome to PyGenoCar - The world in which cars are made using Genetic Algorithms!<br>
-There are a number of things you may care about here including installation and settings. Feel free to mess around with the settings and see how the cars change over the generations!<br>
+Feel free to mess around with the settings and see how the cars change over the generations!<br>
+This contains information on the following:<br>
+<ul>
+<li>Installation</li>
+<li>Command Line Arguments</li>
+<li>Controls</li>
+<li>Settings</li>
+</ul>
 
 # Installation
 This requires Python3.6+<br><br>
@@ -28,6 +35,15 @@ You can now run `pip3 install -r requirements.txt` to finish installing the belo
 1. numpy
 2. pyqt5
 3. dill
+
+# Command Line Arguments
+Most of the stuff you are going to want to change is done in settings. The reason for this is there are just so many parameters, and having everything be modifiable through the command line would be overwhelming. There are however some things you may want to use the command line for:<br>
+
+`-h`: Basic help message.<br>
+`--save-best <location>`: You can specify a `/path/to/save` the best car from each generation to. Make sure that folder is empty or at least does not contain previous generation cars, otherwise they are at risk of being overwritten and the program won't allow that.<br>
+`--save-pop <location>`: If you want, you can specify a `/path/to/save` the entire population after each generation. Not really advised, but if you want to, it's here.<br>
+`--save-pop-on-close <location>`: `/path/to/save` the population when the program exits.<br>
+`--replay-from-folder <location>`: Can be used to replay individuals from a folder you saved to. Currently only supports playing one car at a time. Useful for seeing how best individuals are changing over the generations.
 
 # Controls<br>
 It might seem weird to have controls for a Genetic Algorithm, but the controls are for being able to move the camera around to get a better idea of the environment. Below are the current supported controls and their functions:<br>
