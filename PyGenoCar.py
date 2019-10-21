@@ -699,7 +699,10 @@ class MainWindow(QMainWindow):
 
         # Gaussian
         if mutation_bucket == 0:
-            gaussian_mutation(chromosome, get_ga_constant('mutation_rate'), scale=get_ga_constant('gaussian_mutation_scale'))
+            mutation_rate = get_ga_constant('mutation_rate')
+            if get_ga_constant('mutation_rate_type').lower() == 'dynamic':
+                mutation_rate = mutation_rate / math.sqrt(self.current_generation + 1)
+            gaussian_mutation(chromosome, mutation_rate, scale=get_ga_constant('gaussian_mutation_scale'))
 
 
         # Random uniform

@@ -55,7 +55,7 @@ def create_floor_tile(world: b2World, position: b2Vec2, angle: float) -> b2Body:
 
 
 class Floor(object):
-    def __init__(self, world: b2World, seed=0, num_tiles = get_boxcar_constant('max_floor_tiles')):
+    def __init__(self, world: b2World, seed = get_boxcar_constant('gaussian_floor_seed'), num_tiles = get_boxcar_constant('max_floor_tiles')):
         self.world = world
         self.seed = seed  # @TODO: Add this to the setting
         self.num_tiles = num_tiles

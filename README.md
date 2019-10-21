@@ -63,14 +63,17 @@ It is important to note that units are in MKS (meters, kilograms, seconds). If y
 <i><b>floor_tile_height</b></i> [float]: The height that each floor tile in the world will be created with.<br>
 <i><b>floor_tile_width</b></i> [float]: The width that each floor tile in the world will be created with.<br>
 <i><b>max_floor_tiles</b></i> [int]: Maximum number of floor tiles that will be created in the world.<br>
+<i><b>gaussian_floor_seed</b></i> [int]: If you choose to create a gaussian floor, this seed will be used for the random number generator.<br>
 <i><b>floor_creation_type</b></i> [str]: Determines what type of floor will be generated for cars to compete on. Options are: `gaussian`, `ramp` and `jagged`
 <ul>
 <u>gaussian</u><br>
 Gaussian creation creates a very random track. There are modifiers to help the track be easier in the beginning and potentially harder at the end. Elevation gain and loss are both possible. Below are settings you can modify if <i><b>floor_creation_type</b></i> == `gaussian`:<br>
 <i><b>tile_angle_mu</b></i> [float]: When a random gaussian floor tile is created, it is created with a gaussian random angle centered around this value.<br>
 <i><b>tile_angle_std</b></i> [float]: When a random gaussian floor tile is created, it is created with a gaussian random angle with standard deviation of this value.<br>
-<i><b>tile_gaussian_denominator</b></i> [float]: Used for calculating a scale between [0,1] to multiply the angle by. See equation @TODO: Link an equation?<br>
-<i><b>tile_gaussian_threshold</b></i> [float]: Used for calculating a scale between [0,1] to multiple the angle by. See quation @TODO: Link an equation<br>
+<br>
+Please see equation and explanation at the bottom of the page for what these two parameters control<br>
+<i><b>tile_gaussian_denominator</b></i> [float]: Used for calculating a scale between [0,1] to multiply the angle by.<br>
+<i><b>tile_gaussian_threshold</b></i> [float]: Used for calculating a scale between [0,1] to multiple the angle by.<br>
 
 <br>
 <u>ramp</u><br>
@@ -85,7 +88,7 @@ Ramp creation creates a specified ramp and a jump distance that the cars will ne
 <i><b>ramp_max_angle</b></i>: [float] Maximum angle to make a tile before ending the ramp creation.<br>
 <br>
 <i><b>ramp_approach_distance</b></i> [float]: Flat distance used as a runway before starting the ramp.
-<i><b>ramp_distance_needed_to_jump</b></i> [float]: Distance needed to jump before there is a landing zone. Distance is measured from the end ramp location to beginning of landing zone.
+<i><b>ramp_distance_needed_to_jump</b></i> [float]: Distance needed to jump before there is a landing zone. Distance is measured from the end ramp location to beginning of landing zone.<br>
 
 <br>
 <u>jagged</u><br>
@@ -163,6 +166,19 @@ The fitness function determines the overall fitness of an individual - calculate
 <i><b>total_wheels_volume</b></i> [float]: Total volume of all wheels on the car.<br>
 <i><b>frames</b></i> [int]: Total frames the that individual stayed alive for.<br>
 </ul>
-<i><b></b></i>
-<i><b></b></i>
+<br>
 
+## Random
+<i><b>Gaussian threshold explained</i></b>:<br>
+When creating gaussian random tiles, you may want the tiles to start off at an easier angle and progressively get more chaotic. Because of this I introduced two concepts that you can modify to tweak the rate at which tile angles become more chaotic.<br>
+<br>
+The equation is:<br>
+
+    threshold = get_boxcar_constant('tile_gaussian_threshold')
+    denominator = get_boxcar_constant('tile_gaussian_denominator')
+    numerator = min(i, threshold)
+    scale = min(numerator / denominator, 1.0)
+    angle = random(mu, std) * scale
+where `i` goes from `[0, num_tiles)`
+
+So if `num_tiles = tile_gaussian_threshold = tile_gaussian_denominator` then `scale` won't be `1.0` until the very end. This just makes it so the potential of `random(mu, std)` is less until the end of the track. If you want just pure potential chaos, set both `tile_gaussian_threshold = tile_gaussian_denominator = 1`.

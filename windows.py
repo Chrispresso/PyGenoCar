@@ -162,6 +162,7 @@ class DensityWindow(QWidget):
             self._add_bc_row_entry('ramp_distance_needed_to_jump', 'Jump Distance:', font_bold, normal_font)
         # Gaussian specific stuff
         elif get_boxcar_constant('floor_creation_type') == 'gaussian':
+            self._add_bc_row_entry('gaussian_floor_seed', 'Seed:', font_bold, normal_font)
             self._add_bc_row_entry('tile_angle_mu', 'Tile Angle (mu):', font_bold, normal_font)
             self._add_bc_row_entry('tile_angle_std', 'Tile Andle (std):', font_bold, normal_font)
             self._add_bc_row_entry('tile_gaussian_denominator', 'Angle Normalizer:', font_bold, normal_font)
@@ -173,6 +174,8 @@ class DensityWindow(QWidget):
                 get_boxcar_constant('jagged_decreasing_angle')
             )
             self._add_bc_row_entry(None, 'Jagged Angle:', font_bold, normal_font, force_value=angle_range)
+        else:
+            raise Exception('Unable to determine floor_creation_type "{}"'.format(get_boxcar_constant('floor_creation_type')))
         self._add_bc_row_entry('car_max_tries', 'Car Max Tries:', font_bold, normal_font)
         # Chassis Axis
         chassis_axis_range = '[{:.2f}, {:.2f})'.format(
@@ -416,6 +419,8 @@ class StatsWindow(QWidget):
         # roulette
         elif get_ga_constant('crossover_selection').lower() == 'roulette':
             parent_crossover = 'roulette'
+        else:
+            raise Exception('Unable to determine crossover_selection "{}"'.format(get_ga_constant('crossover_selection')))
         self._add_ga_entry(None, 'Crossover Selection:', font_bold, normal_font, force_value=parent_crossover)
         # Mutation rate
         mutation_rate = '{:.1f}%'.format(get_ga_constant('mutation_rate')*100)
@@ -424,7 +429,9 @@ class StatsWindow(QWidget):
             mutation_rate += ' Static'
         # decaying
         elif get_ga_constant('mutation_rate_type').lower() == 'decaying':
-            mutation_rate += 'Decaying'
+            mutation_rate += ' Decaying'
+        else:
+            raise Exception('Unable to determine mutation_rate_type "{}"'.format(get_ga_constant('mutation_rate_type')))
         self._add_ga_entry(None, 'Mutation Rate:', font_bold, normal_font, force_value=mutation_rate)
         # Lifespan
         lifespan = get_ga_constant('lifespan')

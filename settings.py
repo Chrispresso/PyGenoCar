@@ -10,9 +10,10 @@ __settings_cache = {}
 settings['boxcar'] = {
     ### Floor ###
     'floor_tile_height': (.15, float),  # .15
-    'floor_tile_width': (.75, float),  # 1.5
+    'floor_tile_width': (1.5, float),  # 1.5
     'max_floor_tiles': (200, int),
-    'floor_creation_type': ('jagged', str),
+    'gaussian_floor_seed': (0, int),
+    'floor_creation_type': ('gaussian', str),
         ### Floor - Gaussian random. Used when 'floor_creation_type' == 'gaussian' ###
         # Only needed if using gaussian random floor creation
         'tile_angle_mu': (8, float),
@@ -87,9 +88,6 @@ settings['ga'] = {
     'crossover_selection': ('roulette', str),
     'tournament_size': (5, int),
 
-    # Misc.
-    'should_clip': (True, bool),
-
     # Fitness function
     'fitness_function': (lambda max_position, num_wheels, total_chassis_volume, total_wheels_volume, frames: 
                          (max_position * 3) ** 3.5 -
@@ -115,9 +113,6 @@ def _verify_constants() -> None:
     if failed:
         failed_constants = '\n'.join(fail for fail in failed)
         raise Exception('The following constants have invalid values for their types:\n{}'.format(failed_constants))
-
-def _verify_ranges() -> None:
-    failed = []
 
 def _get_constant(constant: str, controller: str) -> Any:
     """
