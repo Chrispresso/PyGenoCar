@@ -18,7 +18,7 @@ class DensityWindow(QWidget):
         self.size = size
         self.resize(size[0], size[1])
         self._gradient_widget = QWidget()
-        self._gradient_widget.resize(size[0]/2, size[1])
+        self._gradient_widget.resize(int(size[0]/2), size[1])
         self._create_linear_gradient()
 
         self.boxcar_form = QFormLayout()
