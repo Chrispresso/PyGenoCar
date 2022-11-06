@@ -292,7 +292,7 @@ class MainWindow(QMainWindow):
         self.game_window.cars = self.cars
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._update)
-        self._timer.start(1000//get_boxcar_constant('fps'))
+        self._timer.start(int(1000//get_boxcar_constant('fps')))
 
     def next_generation(self) -> None:
         if self.state == States.NEXT_GEN:
